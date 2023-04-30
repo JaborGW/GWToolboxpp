@@ -6,7 +6,7 @@
 
 namespace GW {
     namespace Constants {
-        enum class QuestID;
+        enum class QuestID : uint32_t;
     }
 }
 
