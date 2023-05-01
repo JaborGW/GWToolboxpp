@@ -870,9 +870,30 @@ void ChatCommands::Update(float delta) {
         GW::CameraMgr::SideMovement(side * delta * cam_speed);
         GW::CameraMgr::UpdateCameraPos();
     }
-    skill_to_use.Update();
     npc_to_find.Update();
     quest_ping.Update();
+
+    for (uint32_t slot : skills_to_use) {
+        if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Explorable && !GW::Map::GetIsObserving() && (clock() - skill_timer) / 1000.0f > skill_usage_delay) {
+            GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
+            if (skillbar && skillbar->IsValid()) {
+                const GW::SkillbarSkill& skill = skillbar->skills[slot];
+                if (skill.skill_id == GW::Constants::SkillID::No_Skill)
+                    continue;
+                const auto skilldata = GW::SkillbarMgr::GetSkillConstantData(skill.skill_id);
+                if (!skilldata)
+                    continue;
+                if ((skilldata->adrenaline == 0 && skill.GetRecharge() == 0) || (skilldata->adrenaline > 0 && skill.adrenaline_a == skilldata->adrenaline)) {
+                    GW::GameThread::Enqueue([slot] {
+                        GW::SkillbarMgr::UseSkill(slot, GW::Agents::GetTargetId());
+                    });
+
+                    skill_usage_delay = std::max(skilldata->activation + skilldata->aftercast, 0.25f); // a small flat delay of .3s for ping and to avoid spamming in case of bad target
+                    skill_timer = clock();
+                }
+            }
+        }
+    }
 }
 void ChatCommands::QuestPing::Init() {
     auto* quest = GW::QuestMgr::GetActiveQuest();
@@ -986,35 +1007,6 @@ void ChatCommands::SearchAgent::Update() {
     Init(nullptr);
 }
 
-void ChatCommands::SkillToUse::Update() {
-    if (!slot)
-        return;
-    if (GW::Map::GetInstanceType() != GW::Constants::InstanceType::Explorable || GW::Map::GetIsObserving()) {
-        slot = 0;
-        return;
-    }
-    if ((clock() - skill_timer) / 1000.0f < skill_usage_delay)
-        return;
-    const GW::Skillbar* const skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
-    if (!skillbar || !skillbar->IsValid()) {
-        slot = 0;
-        return;
-    }
-    uint32_t lslot = slot - 1;
-    const GW::SkillbarSkill& skill = skillbar->skills[lslot];
-    if (skill.skill_id == GW::Constants::SkillID::No_Skill
-        || skill.skill_id == GW::Constants::SkillID::Mystic_Healing
-        || skill.skill_id == GW::Constants::SkillID::Cautery_Signet) {
-        slot = 0;
-        return;
-    }
-    const GW::Skill& skilldata = *GW::SkillbarMgr::GetSkillConstantData(skill.skill_id);
-    if ((skilldata.adrenaline == 0 && skill.GetRecharge() == 0) || (skilldata.adrenaline > 0 && skill.adrenaline_a == skilldata.adrenaline)) {
-        GW::SkillbarMgr::UseSkill(lslot, GW::Agents::GetTargetId());
-        skill_usage_delay = std::max(skilldata.activation + skilldata.aftercast, 0.25f); // a small flat delay of .3s for ping and to avoid spamming in case of bad target
-        skill_timer = clock();
-    }
-}
 bool ChatCommands::ReadTemplateFile(std::wstring path, char *buff, size_t buffSize) {
     HANDLE fileHandle = CreateFileW(path.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
     if (fileHandle == INVALID_HANDLE_VALUE) {
@@ -1596,23 +1588,39 @@ void ChatCommands::CmdTarget(const wchar_t *message, int argc, LPWSTR *argv) {
     return TargetNearest(GetRemainingArgsWstr(message, 1), Npc);
 }
 
-void ChatCommands::CmdUseSkill(const wchar_t *, int argc, LPWSTR *argv) {
+void ChatCommands::AddSkillToUse(uint32_t skill)
+{
+    if (skill <= 0 || skill > 8)
+        return;
+    auto i = std::find(skills_to_use.begin(), skills_to_use.end(), skill - 1);
+    if (i == skills_to_use.end()) {
+        skills_to_use.push_front(skill - 1);
+    }
+}
+
+void ChatCommands::CmdUseSkill(const wchar_t*, int argc, LPWSTR* argv)
+{
     if (!IsMapReady())
         return;
-    SkillToUse& skill_to_use = Instance().skill_to_use;
-    skill_to_use.slot = 0;
+    Instance().skills_to_use.clear();
     if (argc < 2)
         return;
-    const std::wstring arg1 = GuiUtils::ToLower(argv[1]);
+    std::wstring arg1 = GuiUtils::ToLower(argv[1]);
     if (arg1 == L"stop" || arg1 == L"off" || arg1 == L"0")
         return; // do nothing, already cleared skills_to_use
     uint32_t num = 0;
-    if (!GuiUtils::ParseUInt(argv[1], &num) || num < 1 || num > 8) {
-        Log::Error("Invalid argument '%ls', please use an integer value of 1 to 8", argv[1]);
-        return;
+    for (int i = argc - 1; i > 0; --i) {
+        if (!GuiUtils::ParseUInt(argv[i], &num) || num < 1) {
+            Log::Error("Invalid argument '%ls', please use an integer value", argv[i]);
+            continue;
+        }
+        // note: num can be one or more skills
+        while (num > 10) {
+            Instance().AddSkillToUse(num % 10);
+            num = num / 10;
+        }
+        Instance().AddSkillToUse(num);
     }
-    skill_to_use.slot = num;
-    skill_to_use.skill_usage_delay = .0f;
 }
 
 void ChatCommands::CmdSCWiki(const wchar_t *message, int argc, LPWSTR *argv) {
