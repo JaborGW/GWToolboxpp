@@ -18,8 +18,19 @@
 #include <imgui.h>
 #include <SimpleIni.h>
 #include <filesystem>
+#include <chrono>
 
 namespace {
+    using namespace std::chrono_literals;
+
+    template<typename FuncT>
+    void runWithDelay(FuncT&& function, std::chrono::milliseconds delay)
+    {
+        std::thread([function = std::move(function), delay] {
+            std::this_thread::sleep_for(delay);
+            function();
+        }).detach();
+    }
     bool usesShadowStep(const GW::AgentLiving* agent) { 
         using GW::Constants::SkillID;
 
@@ -38,7 +49,7 @@ namespace {
                 return false;
         }
     }
-    void eeToTarget(const GW::AgentLiving* target) {
+    void eeToTarget(const GW::AgentLiving* target, std::chrono::milliseconds delay = 0ms) {
         const auto self = GW::Agents::GetPlayerAsAgentLiving();
         if (!self || self->energy * self->max_energy < 5.f)
             return;
@@ -59,9 +70,15 @@ namespace {
         if (GW::GetSquareDistance(target->pos, self->pos) > GW::Constants::SqrRange::Spellcast)
             return;
 
-        GW::GameThread::Enqueue([slot, id = target->agent_id]() -> void {
-            GW::SkillbarMgr::UseSkill(slot, id);
-        });
+        auto castEE = [slot, id=target->agent_id] {
+            GW::GameThread::Enqueue([slot, id]() -> void {
+                GW::SkillbarMgr::UseSkill(slot, id);
+            });
+        };
+        if (delay > 0ms)
+            runWithDelay(std::move(castEE), delay);
+        else
+            castEE();
     }
 }
 
@@ -71,9 +88,9 @@ void AutoEE::DrawSettings()
 
     const auto scale = ImGui::GetIO().FontGlobalScale;
 
-    ImGui::Text("Hotkey: ");
+    ImGui::Text("Hotkey:       ");
     ImGui::SameLine();
-    if (ImGui::Button(hotkeyDescription, ImVec2(-140.0f * scale, 0))) {
+    if (ImGui::Button(hotkeyDescription)) {
         ImGui::OpenPopup("Select Hotkey");
     }
     if (ImGui::IsItemHovered())
@@ -123,6 +140,17 @@ void AutoEE::DrawSettings()
 
         ImGui::EndPopup();
     }
+    ImGui::Text("Cast delay: ");
+    ImGui::SameLine();
+    if (ImGui::SliderInt("", &eeDelayInMs, 0, 250)) {}
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", "(?)");
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("%s",
+            "If you get a HCT, but your ally does not AND you have low ping, its possible that your EE ends before the shadow step. " 
+            "Increase this value if you are having this issue. Decrease this value if the plugin stops working.");
+    }
+    
 }
 
 void AutoEE::LoadSettings(const wchar_t* folder)
@@ -133,6 +161,7 @@ void AutoEE::LoadSettings(const wchar_t* folder)
 
     shortcutKey = ini.GetLongValue(Name(), "key", shortcutKey);
     shortcutMod = ini.GetLongValue(Name(), "mod", shortcutMod);
+    eeDelayInMs = ini.GetLongValue(Name(), "delay", eeDelayInMs);
 
     ModKeyName(hotkeyDescription, _countof(hotkeyDescription), shortcutMod, shortcutKey);
 }
@@ -143,6 +172,7 @@ void AutoEE::SaveSettings(const wchar_t* folder)
     const auto path = std::filesystem::path(folder) / L"autoee.ini";
     ini.SetLongValue(Name(), "key", shortcutKey);
     ini.SetLongValue(Name(), "mod", shortcutMod);
+    ini.SetLongValue(Name(), "delay", eeDelayInMs);
 
     ini.SaveFile(path.wstring().c_str());
 }
@@ -170,7 +200,7 @@ void AutoEE::Update(float delta)
         const auto target = GW::Agents::GetTargetAsAgentLiving();
         const auto isUsingShadowStep = usesShadowStep(target);
         if (isUsingShadowStep && !wasUsingShadowStep) // Only cast on first frame
-            eeToTarget(target);
+            eeToTarget(target, std::chrono::milliseconds{eeDelayInMs});
         wasUsingShadowStep = isUsingShadowStep;
     }
     else
