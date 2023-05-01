@@ -60,6 +60,7 @@
 #include <Windows/ObserverExportWindow.h>
 #include <Windows/CompletionWindow.h>
 #include <Windows/DupingWindow.h>
+#include <Windows/DialogsWindow.h>
 #ifdef _DEBUG
 #include <Windows/PacketLoggerWindow.h>
 #include <Windows/DoorMonitorWindow.h>
@@ -203,6 +204,7 @@ void ToolboxSettings::LoadModules(ToolboxIni* ini) {
     GWToolbox::ToggleModule(LoginModule::Instance());
     GWToolbox::ToggleModule(AprilFools::Instance());
     GWToolbox::ToggleModule(SettingsWindow::Instance());
+    GWToolbox::ToggleModule(DialogsWindow::Instance());
 
 #ifdef _DEBUG
 #if 0
