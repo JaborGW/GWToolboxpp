@@ -712,8 +712,6 @@ void AgentRenderer::Render(IDirect3DDevice9* device) {
         }
         else if (agent->GetIsLivingType()) {
             const auto living = agent->GetAsAgentLiving();
-            if (!show_hidden_npcs && !GW::Agents::GetIsAgentTargettable(living))
-                continue;
             if (AddOtherPlayersToDraw(living))
                 continue; // 5. players
             if (AddDeadAgentToDraw(living))
