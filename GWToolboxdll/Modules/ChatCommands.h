@@ -3,6 +3,7 @@
 #include <GWCA/Constants/Constants.h>
 
 #include <GWCA/Managers/UIMgr.h>
+#include <GWCA/GameEntities/Agent.h>
 
 #include <Utils/GuiUtils.h>
 
@@ -75,6 +76,7 @@ private:
     static void CmdAfk(const wchar_t *message, int argc, LPWSTR *argv);
     static void CmdTarget(const wchar_t *message, int argc, LPWSTR *argv);
     static void CmdUseSkill(const wchar_t *message, int argc, LPWSTR *argv);
+    static void CmdFollow(const wchar_t* message, int argc, LPWSTR* argv);
     static void CmdShow(const wchar_t *message, int argc, LPWSTR *argv);
     static void CmdHide(const wchar_t *message, int argc, LPWSTR *argv);
     static void CmdToggle(const wchar_t* message, int argc, LPWSTR* argv);
@@ -133,6 +135,8 @@ private:
     std::list<uint32_t> skills_to_use;  // 0-7 range
     float skill_usage_delay = 1.0f;
     clock_t skill_timer = clock();
+
+    std::optional<GW::AgentID> agentToFollow = std::nullopt;
 
     struct QuestPing {
         GW::Constants::QuestID  quest_id = (GW::Constants::QuestID)0;

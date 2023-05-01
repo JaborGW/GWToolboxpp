@@ -575,6 +575,7 @@ void ChatCommands::DrawHelp() {
         "Use the skill number instead of <skill> (e.g. '/useskill 5'). "
         "Use empty '/useskill' or '/useskill stop' to stop all. "
         "Use '/useskill <skill>' to stop the skill.");
+    ImGui::Bullet(); ImGui::Text("'/follow' makes the player follow the current target");
     ImGui::Bullet(); ImGui::Text("'/volume [master|music|background|effects|dialog|ui] <amount (0-100)>' set in-game volume.");
     ImGui::Bullet(); ImGui::Text("'/wiki [quest|<search_term>]' search GWW for current quest or search term. By default, will search for the current map.");
     ImGui::Bullet(); ImGui::Text(withdraw_syntax);
@@ -699,6 +700,7 @@ void ChatCommands::Initialize() {
     GW::Chat::CreateCommand(L"target", CmdTarget);
     GW::Chat::CreateCommand(L"tgt", CmdTarget);
     GW::Chat::CreateCommand(L"useskill", CmdUseSkill);
+    GW::Chat::CreateCommand(L"follow", CmdFollow);
     GW::Chat::CreateCommand(L"scwiki", CmdSCWiki);
     GW::Chat::CreateCommand(L"load", CmdLoad);
     GW::Chat::CreateCommand(L"ping", CmdPing);
@@ -872,6 +874,16 @@ void ChatCommands::Update(float delta) {
     }
     npc_to_find.Update();
     quest_ping.Update();
+
+    const auto player = GW::Agents::GetPlayerAsAgentLiving();
+    if (Instance().agentToFollow && player) {
+        const auto target = GW::Agents::GetAgentByID(*Instance().agentToFollow);
+        if (target && player->GetIsIdle()) {
+            const auto distance = GW::GetSquareDistance(player->pos, target->pos);
+            if (distance > GW::Constants::SqrRange::Nearby)
+                GW::Agents::GoPlayer(target);
+        }
+    }
 
     for (uint32_t slot : skills_to_use) {
         if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Explorable && !GW::Map::GetIsObserving() && (clock() - skill_timer) / 1000.0f > skill_usage_delay) {
@@ -1621,6 +1633,23 @@ void ChatCommands::CmdUseSkill(const wchar_t*, int argc, LPWSTR* argv)
         }
         Instance().AddSkillToUse(num);
     }
+}
+
+void ChatCommands::CmdFollow(const wchar_t*, int argc, LPWSTR* argv)
+{
+    if (!IsMapReady())
+        return;
+    Instance().agentToFollow = std::nullopt;
+    
+    if (argc >= 2) {
+        std::wstring arg1 = GuiUtils::ToLower(argv[1]);
+        if (arg1 == L"stop" || arg1 == L"off" || arg1 == L"0")
+            return;
+    }
+    
+    const auto target = GW::Agents::GetTargetAsAgentLiving();    
+    if (target && target->allegiance == GW::Constants::Allegiance::Ally_NonAttackable)
+        Instance().agentToFollow = target->agent_id;
 }
 
 void ChatCommands::CmdSCWiki(const wchar_t *message, int argc, LPWSTR *argv) {
