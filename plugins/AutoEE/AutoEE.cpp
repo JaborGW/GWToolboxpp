@@ -44,31 +44,42 @@ namespace {
             case SkillID::Vipers_Defense:
             case SkillID::Dark_Prison:
             case SkillID::Ebon_Escape:
+            case SkillID::Aura_of_Displacement:
+            case SkillID::Beguiling_Haze:
+            case SkillID::Shadow_Fang:
+            case SkillID::Shadow_Prison:
+            case SkillID::Shadow_Theft:
+            case SkillID::Wastrels_Collapse:
+            case SkillID::Deaths_Retreat:
+            case SkillID::Return:
+            case SkillID::Shadow_Meld:
+            case SkillID::Spirit_Walk:
+            case SkillID::Swap:
                 return true;
             default: 
                 return false;
         }
     }
-    void eeToTarget(const GW::AgentLiving* target, std::chrono::milliseconds delay = 0ms) {
+    bool jumpToAlly(GW::Constants::SkillID skillid, const GW::AgentLiving* target, std::chrono::milliseconds delay = 0ms) {
         const auto self = GW::Agents::GetPlayerAsAgentLiving();
         if (!self || self->energy * self->max_energy < 5.f)
-            return;
+            return false;
         if (self->agent_id == target->agent_id)
-            return;
+            return false;
 
-        int islot = GW::SkillbarMgr::GetSkillSlot(GW::Constants::SkillID::Ebon_Escape);
+        int islot = GW::SkillbarMgr::GetSkillSlot(skillid);
         if (islot < 0)
-            return;
+            return false;
         uint32_t slot = static_cast<uint32_t>(islot);
 
         GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
         if (!skillbar || !skillbar->IsValid())
-            return;
+            return false;
         if (skillbar->skills[slot].recharge != 0)
-            return;
+            return false;
 
         if (GW::GetSquareDistance(target->pos, self->pos) > GW::Constants::SqrRange::Spellcast)
-            return;
+            return false;
 
         auto castEE = [slot, id=target->agent_id] {
             GW::GameThread::Enqueue([slot, id]() -> void {
@@ -79,6 +90,7 @@ namespace {
             runWithDelay(std::move(castEE), delay);
         else
             castEE();
+        return true;
     }
 }
 
@@ -142,7 +154,7 @@ void AutoEE::DrawSettings()
     }
     ImGui::Text("Cast delay: ");
     ImGui::SameLine();
-    if (ImGui::SliderInt("", &eeDelayInMs, 0, 250)) {}
+    if (ImGui::SliderInt("", &castDelayInMs, 0, 250)) {}
     ImGui::SameLine();
     ImGui::TextDisabled("%s", "(?)");
     if (ImGui::IsItemHovered()) {
@@ -161,7 +173,7 @@ void AutoEE::LoadSettings(const wchar_t* folder)
 
     shortcutKey = ini.GetLongValue(Name(), "key", shortcutKey);
     shortcutMod = ini.GetLongValue(Name(), "mod", shortcutMod);
-    eeDelayInMs = ini.GetLongValue(Name(), "delay", eeDelayInMs);
+    castDelayInMs = ini.GetLongValue(Name(), "delay", castDelayInMs);
 
     ModKeyName(hotkeyDescription, _countof(hotkeyDescription), shortcutMod, shortcutKey);
 }
@@ -172,7 +184,7 @@ void AutoEE::SaveSettings(const wchar_t* folder)
     const auto path = std::filesystem::path(folder) / L"autoee.ini";
     ini.SetLongValue(Name(), "key", shortcutKey);
     ini.SetLongValue(Name(), "mod", shortcutMod);
-    ini.SetLongValue(Name(), "delay", eeDelayInMs);
+    ini.SetLongValue(Name(), "delay", castDelayInMs);
 
     ini.SaveFile(path.wstring().c_str());
 }
@@ -199,8 +211,13 @@ void AutoEE::Update(float delta)
     if (keyIsPressed) {
         const auto target = GW::Agents::GetTargetAsAgentLiving();
         const auto isUsingShadowStep = usesShadowStep(target);
-        if (isUsingShadowStep && !wasUsingShadowStep) // Only cast on first frame
-            eeToTarget(target, std::chrono::milliseconds{eeDelayInMs});
+        if (isUsingShadowStep && !wasUsingShadowStep) { // Only cast on first frame
+            bool hasJumped = jumpToAlly(GW::Constants::SkillID::Ebon_Escape, target, std::chrono::milliseconds{castDelayInMs});
+            if (!hasJumped)
+                hasJumped = jumpToAlly(GW::Constants::SkillID::Return, target, std::chrono::milliseconds{castDelayInMs});
+            if (!hasJumped)
+                hasJumped = jumpToAlly(GW::Constants::SkillID::Deaths_Retreat, target, std::chrono::milliseconds{castDelayInMs});
+        }
         wasUsingShadowStep = isUsingShadowStep;
     }
     else

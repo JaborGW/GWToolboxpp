@@ -21,7 +21,7 @@ private:
     long shortcutKey = 0;
     long shortcutMod = 0;
     char hotkeyDescription[64]{};
-    int eeDelayInMs = 0;
+    int castDelayInMs = 0;
 
     bool wasUsingShadowStep = false;
 };
