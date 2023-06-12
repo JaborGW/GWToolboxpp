@@ -98,8 +98,6 @@ void AutoEE::DrawSettings()
 {
     ToolboxPlugin::DrawSettings();
 
-    const auto scale = ImGui::GetIO().FontGlobalScale;
-
     ImGui::Text("Hotkey:       ");
     ImGui::SameLine();
     if (ImGui::Button(hotkeyDescription)) {
