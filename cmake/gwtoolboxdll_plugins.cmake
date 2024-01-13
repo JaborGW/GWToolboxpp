@@ -42,3 +42,4 @@ endmacro()
 
 add_tb_plugin(ExamplePlugin)
 add_tb_plugin(AutoEE)
+add_tb_plugin(Slowload)
