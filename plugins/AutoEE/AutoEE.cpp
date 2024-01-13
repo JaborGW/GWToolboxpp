@@ -19,6 +19,7 @@
 #include <SimpleIni.h>
 #include <filesystem>
 #include <chrono>
+#include <thread>
 
 namespace {
     using namespace std::chrono_literals;
