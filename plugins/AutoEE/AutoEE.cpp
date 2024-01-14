@@ -166,26 +166,23 @@ void AutoEE::DrawSettings()
 
 void AutoEE::LoadSettings(const wchar_t* folder)
 {
-    CSimpleIniA ini{};
-    const auto path = std::filesystem::path(folder) / L"autoee.ini";
-    ini.LoadFile(path.wstring().c_str());
-
+    ToolboxUIPlugin::LoadSettings(folder);
+    
+    ini.LoadFile(GetSettingFile(folder).c_str());
     shortcutKey = ini.GetLongValue(Name(), "key", shortcutKey);
     shortcutMod = ini.GetLongValue(Name(), "mod", shortcutMod);
-    castDelayInMs = ini.GetLongValue(Name(), "delay", castDelayInMs);
 
+    castDelayInMs = ini.GetLongValue(Name(), "delay", castDelayInMs);
     ModKeyName(hotkeyDescription, _countof(hotkeyDescription), shortcutMod, shortcutKey);
 }
 
 void AutoEE::SaveSettings(const wchar_t* folder)
 {
-    CSimpleIniA ini{};
-    const auto path = std::filesystem::path(folder) / L"autoee.ini";
+    ToolboxUIPlugin::SaveSettings(folder);
     ini.SetLongValue(Name(), "key", shortcutKey);
     ini.SetLongValue(Name(), "mod", shortcutMod);
     ini.SetLongValue(Name(), "delay", castDelayInMs);
-
-    ini.SaveFile(path.wstring().c_str());
+    PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 }
 
 DLLAPI ToolboxPlugin* ToolboxPluginInstance()
