@@ -1,8 +1,8 @@
 #pragma once
 
-#include <ToolboxPlugin.h>
+#include <ToolboxUIPlugin.h>
 
-class AutoEE : public ToolboxPlugin {
+class AutoEE : public ToolboxUIPlugin {
 public:
     const char* Name() const override { return "AutoEE"; }
 
