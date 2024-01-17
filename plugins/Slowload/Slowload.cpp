@@ -19,7 +19,6 @@
 #include <imgui.h>
 #include <thread>
 
-namespace {}
 DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 {
     static Slowload instance;
@@ -59,14 +58,14 @@ void Slowload::Draw(IDirect3DDevice9*)
 
 namespace {
     //Forget you ever saw this
-    std::string to_string(const std::wstring& wstring) {
+    std::string to_string(const std::wstring& wstring) 
+    {
         return std::filesystem::path(wstring).string();
     }
     std::wstring to_wstring(const std::string& string)
     {
         return std::filesystem::path(string).wstring();
     }
-
 }
 
 void Slowload::LoadSettings(const wchar_t* folder)
@@ -109,7 +108,7 @@ void Slowload::DrawSettings()
 
         ImGui::Text("Press key");
 
-        // Modifiers are causing crashes for some reason
+        // Modifiers are causing crashes when ending the slowload for some reason
         /* if (ImGui::IsKeyDown(ImGuiKey_ModCtrl))newmod |= ModKey_Control;
         if (ImGui::IsKeyDown(ImGuiKey_ModShift)) newmod |= ModKey_Shift;
         if (ImGui::IsKeyDown(ImGuiKey_ModAlt)) newmod |= ModKey_Alt;*/
@@ -160,20 +159,6 @@ void Slowload::DrawSettings()
     }
 }
 
-namespace {
-    std::string WStringToString(const std::wstring_view str)
-    {
-        // @Cleanup: ASSERT used incorrectly here; value passed could be from anywhere!
-        if (str.empty()) {
-            return "";
-        }
-        // NB: GW uses code page 0 (CP_ACP)
-        const auto size_needed = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, str.data(), static_cast<int>(str.size()), nullptr, 0, nullptr, nullptr);
-        std::string str_to(size_needed, 0);
-        return std::move(str_to);
-    }
-}
-
 void Slowload::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODULE toolbox_dll)
 {
     ToolboxUIPlugin::Initialize(ctx, fns, toolbox_dll);
@@ -193,11 +178,12 @@ void Slowload::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODULE toolbox_
         if (!slowloading_character_name.empty() && slowloading_character_name != GW::GetCharContext()->player_name) return;
 
         is_active = false;
+        
+        // Minimum sleep time - there were some crashes if the key was queried for immediately; how low you can go with this was not tested
         std::this_thread::sleep_for(3s);
         while (!keyIsPressed())
-            std::this_thread::sleep_for(100ms);
+            std::this_thread::sleep_for(50ms);
     });
-    instanceLoadEntry;
 }
 
 void Slowload::Update(float delta)
