@@ -9,7 +9,7 @@
 #include "PluginUtils.h"
 
 namespace {
-    void CmdTB(GW::HookStatus* status, const wchar_t*, const int argc, const LPWSTR* argv)
+        void CmdTB(GW::HookStatus* status, const wchar_t*, const int argc, const LPWSTR* argv)
     {
         const auto instance = static_cast<ToolboxUIPlugin*>(ToolboxPluginInstance());
         if (!instance) {
