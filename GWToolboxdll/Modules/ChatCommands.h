@@ -4,6 +4,8 @@
 
 #include <GWCA/Managers/UIMgr.h>
 
+#include <GWCA/GameEntities/Agent.h>
+
 #include <Utils/GuiUtils.h>
 
 #include <ToolboxModule.h>
@@ -87,6 +89,7 @@ private:
     static void CHAT_CMD_FUNC(CmdLoad);
     static void CHAT_CMD_FUNC(CmdPingBuild);
     static void CHAT_CMD_FUNC(CmdTransmo);
+    static void CHAT_CMD_FUNC(CmdFollow);
     static void CHAT_CMD_FUNC(CmdResize);
     static void CHAT_CMD_FUNC(CmdPingEquipment);
     static void CHAT_CMD_FUNC(CmdTransmoTarget);
@@ -100,6 +103,7 @@ private:
     static void CHAT_CMD_FUNC(CmdSetNormalMode);
     static void CHAT_CMD_FUNC(CmdAnimation);
     static void CHAT_CMD_FUNC(CmdMute);
+
     // Trigger hall of monuments info for current target or given player name
     static void CHAT_CMD_FUNC(CmdHom);
     static void CHAT_CMD_FUNC(CmdWithdraw);
@@ -140,6 +144,8 @@ private:
     std::list<uint32_t> skills_to_use;  // 0-7 range
     float skill_usage_delay = 1.0f;
     clock_t skill_timer = clock();
+
+    std::optional<GW::AgentID> agentToFollow = std::nullopt;
 
     struct QuestPing {
         GW::Constants::QuestID quest_id = static_cast<GW::Constants::QuestID>(0);
