@@ -1,5 +1,6 @@
 #include <ConditionIO.h>
 #include <ConditionImpls.h>
+#include <Selectors.h>
 
 #include <imgui.h>
 
@@ -321,10 +322,13 @@ switch (static_cast<ConditionType>(type))
 }
 }
 
-std::shared_ptr<Condition> drawConditionSelector(float width)
+void drawSelector(std::shared_ptr<Condition>& result, std::optional<float> width)
 {
-    std::shared_ptr<Condition> result = nullptr;
-
+    if (result) 
+    {
+        result->drawSettings();
+        return;
+    }
     const auto drawConditionSelector = [&result](ConditionType type)
     {
         if (ImGui::MenuItem(toString(type).data())) 
@@ -344,11 +348,10 @@ std::shared_ptr<Condition> drawConditionSelector(float width)
         }
     };
 
-    if (ImGui::Button("Add condition", ImVec2(width, 0))) 
+    if (ImGui::Button("Add condition", ImVec2(width.value_or(100.f), 0))) 
     {
         ImGui::OpenPopup("Add condition");
     }
-
     constexpr auto playerConditions = std::array{ConditionType::PlayerIsNearPosition,  ConditionType::PlayerInPolygon, ConditionType::PlayerHasBuff,    ConditionType::PlayerHasSkill, ConditionType::RemainingCooldown, ConditionType::PlayerHasClass,
                                                  ConditionType::PlayerHasName,         ConditionType::PlayerHasEnergy, ConditionType::PlayerHasHpBelow, ConditionType::PlayerStatus,   ConditionType::PlayerIsIdle,
                                                  ConditionType::PlayerHasItemEquipped, ConditionType::ItemInInventory, ConditionType::PlayerMorale,     ConditionType::CanPopAgent};
@@ -372,43 +375,22 @@ std::shared_ptr<Condition> drawConditionSelector(float width)
 
         ImGui::EndPopup();
     }
-
-    return result;
 }
 
-void drawConditionSetSelector(std::vector<std::shared_ptr<Condition>>& conditions, std::optional<float> width, bool showAddButton)
+void drawConditionSetSelector(std::vector<std::shared_ptr<Condition>>& conditions, std::optional<float> width)
 {
-    std::optional<int> rowToDelete;
-    std::optional<std::pair<int, int>> rowsToSwap;
-
-    for (int i = 0; i < int(conditions.size()); ++i) {
-        ImGui::PushID(i);
-
-        if (ImGui::Button("X", ImVec2(20, 0))) {
+    const auto deleteCondition = [&conditions](int i) {
         if (conditions[i])
             conditions[i] = nullptr;
         else
-            rowToDelete = i;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("^", ImVec2(20, 0)) && i > 0) rowsToSwap = {i - 1, i};
-        ImGui::SameLine();
-        if (ImGui::Button("v", ImVec2(20, 0)) && i + 1 < int(conditions.size())) rowsToSwap = {i, i + 1};
+            conditions.erase(conditions.begin() + i);
+    };
+    const auto addCondition = [&conditions, width]() {
+        std::shared_ptr<Condition> newCondition;
+        drawSelector(newCondition, width.value_or(ImGui::GetContentRegionAvail().x));
 
-        ImGui::SameLine();
-        if (conditions[i])
-            conditions[i]->drawSettings();
-        else
-            conditions[i] = drawConditionSelector(100.f);
+        if (newCondition) conditions.push_back(std::move(newCondition));
+    };
 
-        ImGui::PopID();
-    }
-    if (rowToDelete) conditions.erase(conditions.begin() + *rowToDelete);
-    if (rowsToSwap) std::swap(*(conditions.begin() + rowsToSwap->first), *(conditions.begin() + rowsToSwap->second));
-
-    if (showAddButton) 
-    {
-        if (auto newCondition = drawConditionSelector(width.value_or(ImGui::GetContentRegionAvail().x)))
-            conditions.push_back(std::move(newCondition));
-    }
+    drawListSelector(conditions, "condition", width, deleteCondition, addCondition);
 }

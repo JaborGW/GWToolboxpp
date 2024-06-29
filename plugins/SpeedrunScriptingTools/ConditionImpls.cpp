@@ -185,7 +185,7 @@ void NegatedCondition::drawSettings()
         cond->drawSettings();
     }
     else {
-        cond = drawConditionSelector(100.f);
+        drawSelector(cond);
     }
     ImGui::SameLine();
     ImGui::Text(")");
@@ -847,7 +847,7 @@ void CurrentTargetModelCondition::drawSettings()
     ImGui::Text("If the target has model");
     ImGui::PushItemWidth(90);
     ImGui::SameLine();
-    drawSelector(modelId);
+    drawSelector(modelId, "Model ID");
     ImGui::PopID();
 }
 
@@ -1697,7 +1697,7 @@ void OnceCondition::drawSettings()
         cond->drawSettings();
     }
     else {
-        cond = drawConditionSelector(100.f);
+        drawSelector(cond);
     }
     ImGui::SameLine();
     ImGui::Text(")");
@@ -1750,7 +1750,7 @@ void UntilCondition::drawSettings()
         cond->drawSettings();
     }
     else {
-        cond = drawConditionSelector(100.f);
+        drawSelector(cond);
     }
     ImGui::SameLine();
     ImGui::Text(")");
@@ -1802,7 +1802,7 @@ void AfterCondition::drawSettings()
         cond->drawSettings();
     }
     else {
-        cond = drawConditionSelector(100.f);
+        drawSelector(cond);
     }
     ImGui::SameLine();
     ImGui::Text(")");
@@ -1898,7 +1898,7 @@ void ToggleCondition::drawSettings()
             cond->drawSettings();
         }
         else
-            cond = drawConditionSelector(100.f);
+            drawSelector(cond);
 
         if (deleteCondition) 
             cond = nullptr;

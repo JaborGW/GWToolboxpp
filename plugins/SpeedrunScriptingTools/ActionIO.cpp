@@ -2,6 +2,7 @@
 #include <ActionImpls.h>
 
 #include <imgui.h>
+#include <Selectors.h>
 
 namespace {
     std::shared_ptr<Action> makeAction(ActionType type)
@@ -197,10 +198,13 @@ std::shared_ptr<Action> readAction(InputStream& stream)
     }
 }
 
-std::shared_ptr<Action> drawActionSelector(float width)
+void drawSelector(std::shared_ptr<Action>& result, std::optional<float> width = std::nullopt)
 {
-    std::shared_ptr<Action> result = nullptr;
-
+    if (result) 
+    {
+        result->drawSettings();
+        return;
+    }
     const auto drawActionSelector = [&result](ActionType type) 
     {
         if (ImGui::MenuItem(toString(type).data())) 
@@ -220,7 +224,7 @@ std::shared_ptr<Action> drawActionSelector(float width)
         }
     };
 
-    if (ImGui::Button("Add action", ImVec2(width, 0))) 
+    if (ImGui::Button("Add action", ImVec2(width.value_or(100.f), 0))) 
     {
         ImGui::OpenPopup("Add action");
     }
@@ -238,43 +242,23 @@ std::shared_ptr<Action> drawActionSelector(float width)
 
         ImGui::EndPopup();
     }
-
-    return result;
 }
 
-void drawActionSequenceSelector(std::vector<std::shared_ptr<Action>>& actions, std::optional<float> width, bool showAddButton)
+void drawActionSequenceSelector(std::vector<std::shared_ptr<Action>>& actions, std::optional<float> width)
 {
-    std::optional<int> rowToDelete;
-    std::optional<std::pair<int, int>> rowsToSwap;
-
-    for (int i = 0; i < int(actions.size()); ++i) {
-        ImGui::PushID(i);
-
-        if (ImGui::Button("X", ImVec2(20, 0))) {
-            if (actions[i])
-                actions[i] = nullptr;
-            else
-                rowToDelete = i;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("^", ImVec2(20, 0)) && i > 0) rowsToSwap = {i - 1, i};
-        ImGui::SameLine();
-        if (ImGui::Button("v", ImVec2(20, 0)) && i + 1 < int(actions.size())) rowsToSwap = {i, i + 1};
-
-        ImGui::SameLine();
+    const auto deleteAction = [&actions](int i) {
         if (actions[i])
-            actions[i]->drawSettings();
+            actions[i] = nullptr;
         else
-            actions[i] = drawActionSelector(100.f);
-
-        ImGui::PopID();
-    }
-    if (rowToDelete) actions.erase(actions.begin() + *rowToDelete);
-    if (rowsToSwap) std::swap(*(actions.begin() + rowsToSwap->first), *(actions.begin() + rowsToSwap->second));
-
-    if (showAddButton) 
+            actions.erase(actions.begin() + i);
+    };
+    const auto addAction = [&actions, width]() 
     {
-        if (auto newAction = drawActionSelector(width.value_or(ImGui::GetContentRegionAvail().x)))
-            actions.push_back(std::move(newAction));
-    }
+        std::shared_ptr<Action> newAction;
+        drawSelector(newAction, width.value_or(ImGui::GetContentRegionAvail().x));
+        
+        if (newAction) actions.push_back(std::move(newAction));
+    };
+        
+    drawListSelector(actions, "action", width, deleteAction, addAction);
 }

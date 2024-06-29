@@ -6,12 +6,14 @@
 #include <vector>
 #include <string>
 #include <optional>
+#include <functional>
+
 std::string makeHotkeyDescription(Hotkey key);
 
 void drawSelector(Hotkey& hotkey, std::string& description, float selectorWidth);
 void drawSelector(GW::Constants::SkillID& id);
 void drawSelector(GW::Constants::MapID& id);
-void drawSelector(uint16_t& id, std::optional<std::string_view> label = std::nullopt);
+void drawSelector(uint16_t& id, std::string_view label);
 void drawSelector(Trigger& trigger, float width, Hotkey& hotkey);
 void drawSelector(std::vector<GW::Vec2f>& polygon);
 
@@ -37,7 +39,7 @@ void drawEnumButton(T firstValue, T lastValue, T& currentValue, int id = 0, floa
 }
 
 template <typename T>
-void drawListSelector(std::vector<T>& values, const std::string& name, std::optional<float> width = std::nullopt)
+void drawListSelector(std::vector<T>& values, const std::string& name, std::optional<float> width = std::nullopt, std::function<void(int)> customDeleter = nullptr, std::function<void()> customAdder = nullptr)
 {
     std::optional<int> rowToDelete;
     std::optional<std::pair<int, int>> rowsToSwap;
@@ -45,8 +47,7 @@ void drawListSelector(std::vector<T>& values, const std::string& name, std::opti
     for (int i = 0; i < int(values.size()); ++i) {
         ImGui::PushID(i);
 
-        if (ImGui::Button("X", ImVec2(20, 0)))
-            rowToDelete = i;
+        if (ImGui::Button("X", ImVec2(20, 0))) rowToDelete = i;
         ImGui::SameLine();
         if (ImGui::Button("^", ImVec2(20, 0)) && i > 0) rowsToSwap = {i - 1, i};
         ImGui::SameLine();
@@ -60,12 +61,15 @@ void drawListSelector(std::vector<T>& values, const std::string& name, std::opti
     if (rowToDelete) values.erase(values.begin() + *rowToDelete);
     if (rowsToSwap) std::swap(*(values.begin() + rowsToSwap->first), *(values.begin() + rowsToSwap->second));
 
-    if (width) 
-    {
-        if (ImGui::Button(("Add " + name).data(), ImVec2(*width, 0))) values.push_back({});
+    if (customAdder) {
+        customAdder();
     }
-    else 
-    {
-        if (ImGui::Button(("Add " + name).data())) values.push_back({});
+    else {
+        if (width) {
+            if (ImGui::Button(("Add " + name).data(), ImVec2(*width, 0))) values.push_back({});
+        }
+        else {
+            if (ImGui::Button(("Add " + name).data())) values.push_back({});
+        }
     }
 }

@@ -4,5 +4,5 @@
 #include <memory>
 
 std::shared_ptr<Action> readAction(InputStream& stream);
-void drawActionSequenceSelector(std::vector<std::shared_ptr<Action>>& actions, std::optional<float> width = std::nullopt, bool showAddButton = true);
+void drawActionSequenceSelector(std::vector<std::shared_ptr<Action>>& actions, std::optional<float> width = std::nullopt);
 std::string_view toString(ActionType type);

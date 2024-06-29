@@ -1295,7 +1295,7 @@ void drawSelector(std::pair<std::shared_ptr<Condition>, std::vector<std::shared_
     else {
         ImGui::Text("Else If");
         ImGui::SameLine();
-        condEI = drawConditionSelector(120.f);
+        drawSelector(condEI, 120.f);
     }
 
     ImGui::Indent(indent);
@@ -1325,7 +1325,7 @@ void ConditionedAction::drawSettings()
         }
     }
     else    
-        cond = drawConditionSelector(120.f);
+        drawSelector(cond);
     drawActionsSelector(actionsIf);
     ImGui::PopID();
 
@@ -1737,7 +1737,7 @@ void WaitUntilAction::drawSettings()
     if (condition)
         condition->drawSettings();
     else
-        condition = drawConditionSelector(120.f);
+        drawSelector(condition);
 
     ImGui::PopID();
 }

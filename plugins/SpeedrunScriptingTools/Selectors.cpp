@@ -166,7 +166,7 @@ void drawSelector(GW::Constants::MapID& id)
 
     ImGui::InputInt("Map ID", reinterpret_cast<int*>(&id), 0);
 }
-void drawSelector(uint16_t& id, std::optional<std::string_view> label)
+void drawSelector(uint16_t& id, std::string_view label)
 {
     ImGui::PushItemWidth(50.f);
     const auto& modelNames = getModelNames();
@@ -177,7 +177,7 @@ void drawSelector(uint16_t& id, std::optional<std::string_view> label)
     }
     int editValue = id;
 
-    if (ImGui::InputInt(label ? label->data() : "Model ID", &editValue, 0)) {
+    if (ImGui::InputInt(label.data(), &editValue, 0)) {
         if (editValue >= 0 && editValue <= 0xFFFF)
             id = uint16_t(editValue);
         else
