@@ -375,3 +375,40 @@ std::shared_ptr<Condition> drawConditionSelector(float width)
 
     return result;
 }
+
+void drawConditionSetSelector(std::vector<std::shared_ptr<Condition>>& conditions, std::optional<float> width, bool showAddButton)
+{
+    std::optional<int> rowToDelete;
+    std::optional<std::pair<int, int>> rowsToSwap;
+
+    for (int i = 0; i < int(conditions.size()); ++i) {
+        ImGui::PushID(i);
+
+        if (ImGui::Button("X", ImVec2(20, 0))) {
+        if (conditions[i])
+            conditions[i] = nullptr;
+        else
+            rowToDelete = i;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("^", ImVec2(20, 0)) && i > 0) rowsToSwap = {i - 1, i};
+        ImGui::SameLine();
+        if (ImGui::Button("v", ImVec2(20, 0)) && i + 1 < int(conditions.size())) rowsToSwap = {i, i + 1};
+
+        ImGui::SameLine();
+        if (conditions[i])
+            conditions[i]->drawSettings();
+        else
+            conditions[i] = drawConditionSelector(100.f);
+
+        ImGui::PopID();
+    }
+    if (rowToDelete) conditions.erase(conditions.begin() + *rowToDelete);
+    if (rowsToSwap) std::swap(*(conditions.begin() + rowsToSwap->first), *(conditions.begin() + rowsToSwap->second));
+
+    if (showAddButton) 
+    {
+        if (auto newCondition = drawConditionSelector(width.value_or(ImGui::GetContentRegionAvail().x)))
+            conditions.push_back(std::move(newCondition));
+    }
+}

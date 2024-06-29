@@ -6,6 +6,8 @@
 #include <Keys.h>
 #include <enumUtils.h>
 #include <SerializationIncrement.h>
+#include <ConstantsWindow.h>
+#include <Selectors.h>
 
 #include <GWCA/GWCA.h>
 
@@ -41,7 +43,7 @@ namespace {
 
     bool mustComeLast(ConditionType type) 
     {
-        return type == ConditionType::OnlyTriggerOncePerInstance || type == ConditionType::Once || type == ConditionType::Throttle;
+        return type == ConditionType::OnlyTriggerOncePerInstance || type == ConditionType::Once;
     }
 
     bool canAddCondition(const Script& script) {
@@ -145,7 +147,7 @@ namespace {
         return result;
     }
 
-    std::string makeScriptHeaderName(const Script& script, int id)
+    std::string makeScriptHeaderName(const Script& script)
     {
         std::string result = script.name + " [";
         if (!script.enabled) 
@@ -161,7 +163,7 @@ namespace {
                     result += "On instance load";
                     break;
                 case Trigger::Hotkey:
-                    result += script.triggerHotkey.keyData ? makeHotkeyDescription(script.triggerHotkey.keyData, script.triggerHotkey.modifier) : "Undefined hotkey";
+                    result += script.triggerHotkey.keyData ? makeHotkeyDescription(script.triggerHotkey) : "Undefined hotkey";
                     break;
                 case Trigger::HardModePing:
                     result += "On hard mode ping";
@@ -173,11 +175,11 @@ namespace {
         result += "]";
         if (script.enabledToggleHotkey.keyData)
         {
-            result += "[Toggle " + makeHotkeyDescription(script.enabledToggleHotkey.keyData, script.enabledToggleHotkey.modifier) + "]";
+            result += "[Toggle " + makeHotkeyDescription(script.enabledToggleHotkey) + "]";
         }
 
 
-        result += "###" + std::to_string(id);
+        //result += "###" + std::to_string(id);
         return result;
     }
 
@@ -187,6 +189,50 @@ namespace {
         {
             return !action || action->behaviour().test(ActionBehaviourFlag::CanBeRunInOutpost);
         });
+    }
+    void drawScriptSettings(Script& script) 
+    {
+        ImGui::Checkbox("Enabled", &script.enabled);
+        ImGui::SameLine();
+        ImGui::PushID(0);
+        auto& toggleKey = script.enabledToggleHotkey;
+        auto description = toggleKey.keyData ? makeHotkeyDescription(toggleKey) : "Set enable toggle";
+        drawSelector(script.enabledToggleHotkey, description, 80.f);
+        if (toggleKey.keyData) 
+        {
+            ImGui::SameLine();
+            ImGui::Text("Toggle");
+            ImGui::SameLine();
+            if (ImGui::Button("X", ImVec2(20.f, 0))) 
+            {
+                toggleKey = {};
+                script.showMessageWhenToggled = false;
+            }
+            ImGui::SameLine();
+            ImGui::Checkbox("Log toggle", &script.showMessageWhenToggled);
+        }
+        ImGui::SameLine();
+
+        ImGui::PopID();
+        ImGui::PushID(1);
+
+        if (ImGui::Button("Copy script", ImVec2(100, 0))) {
+            if (const auto encoded = encodeString(std::to_string(currentVersion) + " " + serialize(script))) {
+                logMessage("Copy script " + script.name + " to clipboard");
+                ImGui::SetClipboardText(encoded->c_str());
+            }
+        }
+
+        ImGui::SameLine();
+        drawSelector(script.trigger, 100.f, script.triggerHotkey);
+
+        ImGui::SameLine();
+        ImGui::Checkbox("Log trigger", &script.showMessageWhenTriggered);
+
+        ImGui::SameLine();
+        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - 50);
+        ImGui::InputText("Name", &script.name);
+        ImGui::PopID();
     }
 }
 
@@ -203,6 +249,26 @@ void SpeedrunScriptingTools::clear()
         script.triggered = false;
 }
 
+void drawSelector(Script& script) 
+{
+    const auto treeHeader = makeScriptHeaderName(script);
+    const auto treeOpen = ImGui::TreeNodeEx(treeHeader.c_str(), ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth);
+
+    if (treeOpen) 
+    {
+        drawConditionSetSelector(script.conditions);
+
+        ImGui::Separator();
+        drawActionSequenceSelector(script.actions);
+
+        // Script settings
+        ImGui::Separator();
+        drawScriptSettings(script);
+
+        ImGui::TreePop();
+    }
+}
+
 void SpeedrunScriptingTools::DrawSettings()
 {
     ToolboxPlugin::DrawSettings();
@@ -212,182 +278,7 @@ void SpeedrunScriptingTools::DrawSettings()
         return;
     }
 
-    using ScriptIt = decltype(m_scripts.begin());
-    std::optional<ScriptIt> scriptToDelete = std::nullopt;
-    std::optional<std::pair<ScriptIt, ScriptIt>> scriptsToSwap = std::nullopt;
-
-    for (auto scriptIt = m_scripts.begin(); scriptIt < m_scripts.end(); ++scriptIt) {
-        ImGui::PushID(scriptIt - m_scripts.begin());
-        auto drawId = 0;
-
-        const auto treeHeader = makeScriptHeaderName(*scriptIt, scriptIt - m_scripts.begin());
-        const auto treeOpen = ImGui::TreeNodeEx(treeHeader.c_str(), ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth);
-        ImGui::SameLine(ImGui::GetContentRegionAvail().x - (treeOpen ? 127.f : 148.f));
-        if (ImGui::Button("X", ImVec2(20, 0))) 
-        {
-            scriptToDelete = scriptIt;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("^", ImVec2(20, 0)) && scriptIt != m_scripts.begin())
-        {
-            scriptsToSwap = {scriptIt - 1, scriptIt};
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("v", ImVec2(20, 0)) && scriptIt + 1 != m_scripts.end()) 
-        {
-            scriptsToSwap = {scriptIt, scriptIt+1};
-        }
-
-        if (treeOpen) {
-            // Conditions
-            {
-                using ConditionIt = decltype(scriptIt->conditions.begin());
-                std::optional<ConditionIt> conditionToDelete = std::nullopt;
-                std::optional<std::pair<ConditionIt, ConditionIt>> conditionsToSwap = std::nullopt;
-                for (auto it = scriptIt->conditions.begin(); it < scriptIt->conditions.end(); ++it) 
-                {
-                    ImGui::PushID(drawId++);
-                    if (ImGui::Button("X", ImVec2(20, 0))) 
-                    {
-                        conditionToDelete = it;
-                    }
-                    if (!mustComeLast(it->get()->type())) 
-                    {
-                        ImGui::SameLine();
-                        if (ImGui::Button("^", ImVec2(20, 0))) 
-                        {
-                            if (it != scriptIt->conditions.begin()) conditionsToSwap = {it - 1, it};
-                        }
-                        ImGui::SameLine();
-                        if (ImGui::Button("v", ImVec2(20, 0))) 
-                        {
-                            if (it + 1 != scriptIt->conditions.end() && !mustComeLast((it + 1)->get()->type())) 
-                                conditionsToSwap = {it, it + 1};
-                        }
-                    }
-                    ImGui::SameLine();
-                    (*it)->drawSettings();
-                    ImGui::PopID();
-                }
-                if (conditionToDelete.has_value()) scriptIt->conditions.erase(conditionToDelete.value());
-                if (conditionsToSwap.has_value()) std::swap(*conditionsToSwap->first, *conditionsToSwap->second);
-                // Add condition
-                if (canAddCondition(*scriptIt)) 
-                {
-                    if (auto newCondition = drawConditionSelector(ImGui::GetContentRegionAvail().x)) 
-                    {
-                        scriptIt->conditions.push_back(std::move(newCondition));
-                    }
-                }
-            }
-
-            // Actions
-            ImGui::Separator();
-            {
-                using ActionIt = decltype(scriptIt->actions.begin());
-                std::optional<ActionIt> actionToDelete = std::nullopt;
-                std::optional<std::pair<ActionIt, ActionIt>> actionsToSwap = std::nullopt;
-                for (auto it = scriptIt->actions.begin(); it < scriptIt->actions.end(); ++it) 
-                {
-                    ImGui::PushID(drawId++);
-
-                    if (ImGui::Button("X", ImVec2(20, 0))) 
-                    {
-                        actionToDelete = it;
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("^", ImVec2(20, 0))) 
-                    {
-                        if (it != scriptIt->actions.begin()) actionsToSwap = {it - 1, it};
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("v", ImVec2(20, 0))) 
-                    {
-                        if (it + 1 != scriptIt->actions.end()) actionsToSwap = {it, it + 1};
-                    }
-                    ImGui::SameLine();
-                    (*it)->drawSettings();
-
-                    ImGui::PopID();
-                }
-                if (actionToDelete.has_value()) scriptIt->actions.erase(actionToDelete.value());
-                if (actionsToSwap.has_value()) std::swap(*actionsToSwap->first, *actionsToSwap->second);
-                // Add action
-                if (auto newAction = drawActionSelector(ImGui::GetContentRegionAvail().x)) 
-                {
-                    scriptIt->actions.push_back(std::move(newAction));
-                }
-            }
-
-            // Script settings
-            ImGui::Separator();
-            {
-                ImGui::PushID(drawId++);
-
-                ImGui::Checkbox("Enabled", &scriptIt->enabled);
-                ImGui::SameLine();
-                
-                auto& keyData = scriptIt->enabledToggleHotkey.keyData;
-                auto& keyMod = scriptIt->enabledToggleHotkey.modifier;
-                auto description = keyData ? makeHotkeyDescription(keyData, keyMod) : "Set enable toggle";
-                drawHotkeySelector(keyData, keyMod, description, 80.f);
-                if (keyData) 
-                {
-                    ImGui::SameLine();
-                    ImGui::Text("Toggle");
-                    ImGui::SameLine();
-                    if (ImGui::Button("X", ImVec2(20.f, 0))) {
-                        keyData = 0;
-                        keyMod = 0;
-                        scriptIt->showMessageWhenToggled = false;
-                    }
-                    ImGui::SameLine();
-                    ImGui::Checkbox("Log toggle", &scriptIt->showMessageWhenToggled);
-                }
-                ImGui::SameLine();
-
-                ImGui::PopID();
-                ImGui::PushID(drawId++);
-
-                if (ImGui::Button("Copy script", ImVec2(100, 0))) 
-                {
-                    if (const auto encoded = encodeString(std::to_string(currentVersion) + " " + serialize(*scriptIt))) 
-                    {
-                        logMessage("Copy script " + scriptIt->name + " to clipboard");
-                        ImGui::SetClipboardText(encoded->c_str());
-                    }
-                }
-
-                ImGui::SameLine();
-                drawTriggerSelector(scriptIt->trigger, 100.f, scriptIt->triggerHotkey.keyData, scriptIt->triggerHotkey.modifier);
-                
-                ImGui::SameLine();
-                ImGui::Checkbox("Log trigger", &scriptIt->showMessageWhenTriggered);
-
-                ImGui::SameLine();
-                ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - 50);
-                ImGui::InputText("Name", &scriptIt->name);
-
-                ImGui::PopID();
-            }
-
-            ImGui::TreePop();
-        }
-        
-        ImGui::PopID();
-    }
-    if (scriptToDelete.has_value()) m_scripts.erase(scriptToDelete.value());
-    if (scriptsToSwap.has_value()) std::swap(*scriptsToSwap->first, *scriptsToSwap->second);
-
-    ImGui::Dummy(ImVec2(0.0f, 5.0f));
-    ImGui::Separator();
-    ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-    // Add script
-    ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x / 2);
-    if (ImGui::Button("Add script", ImVec2(ImGui::GetContentRegionAvail().x / 2, 0))) {
-        m_scripts.push_back({});
-    }
+    drawListSelector(m_scripts, "script", ImGui::GetContentRegionAvail().x / 2);
     ImGui::SameLine();
     if (ImGui::Button("Import script from clipboard", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
         if (const auto clipboardContent = ImGui::GetClipboardText()) {
@@ -413,8 +304,8 @@ void SpeedrunScriptingTools::DrawSettings()
     ImGui::SameLine();
     ImGui::Text("Clear scripts hotkey:");
     ImGui::SameLine();
-    auto description = clearScriptsKey.keyData ? makeHotkeyDescription(clearScriptsKey.keyData, clearScriptsKey.modifier) : "Set key";
-    drawHotkeySelector(clearScriptsKey.keyData, clearScriptsKey.modifier, description, 80.f);
+    auto description = clearScriptsKey.keyData ? makeHotkeyDescription(clearScriptsKey) : "Set key";
+    drawSelector(clearScriptsKey, description, 80.f);
     if (clearScriptsKey.keyData) 
     {
         ImGui::SameLine();
@@ -438,6 +329,9 @@ void SpeedrunScriptingTools::DrawSettings()
     {
         ShellExecute(nullptr, "open", discordInviteLink, nullptr, nullptr, SW_SHOWNORMAL);
     }
+
+    if (ImGui::Button("Show Constants Window")) showConstantsWindow = true;
+    if (showConstantsWindow) drawConstantsWindow(showConstantsWindow);
 }
 
 void SpeedrunScriptingTools::LoadSettings(const wchar_t* folder)

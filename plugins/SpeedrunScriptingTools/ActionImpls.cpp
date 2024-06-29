@@ -4,6 +4,7 @@
 #include <ActionIO.h>
 #include <InstanceInfo.h>
 #include <enumUtils.h>
+#include <Selectors.h>
 
 #include <GWCA/Managers/AgentMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
@@ -370,7 +371,7 @@ void CastAction::drawSettings()
 
     ImGui::Text("Use skill");
     ImGui::SameLine();
-    drawSkillIDSelector(id);
+    drawSelector(id);
 
     ImGui::PopID();
 }
@@ -667,7 +668,7 @@ void ChangeTargetAction::drawSettings()
             ImGui::BulletText("Uses skill");
             ImGui::SameLine();
             ImGui::PushID(0);
-            drawSkillIDSelector(skill);
+            drawSelector(skill);
             ImGui::PopID();
 
             ImGui::BulletText("Name");
@@ -695,7 +696,7 @@ void ChangeTargetAction::drawSettings()
             ImGui::Bullet();
             ImGui::Text(requireSameModelIdAsTarget ? "If no target is selected: Model" : "Model");
             ImGui::SameLine();
-            drawModelIDSelector(modelId, "id (0 for any)###12");
+            drawSelector(modelId, "id (0 for any)###12");
 
             ImGui::Bullet();
             ImGui::Text("Angle to player forward (degrees)");
@@ -715,7 +716,7 @@ void ChangeTargetAction::drawSettings()
             ImGui::Bullet();
             ImGui::Text("Is within polygon");
             ImGui::SameLine();
-            drawPolygonSelector(polygon);
+            drawSelector(polygon);
         }
 
         ImGui::TreePop();
@@ -1103,7 +1104,7 @@ void DropBuffAction::drawSettings()
     ImGui::Text("Drop buff");
     ImGui::PushItemWidth(90);
     ImGui::SameLine();
-    drawSkillIDSelector(id);
+    drawSelector(id);
 
     ImGui::PopID();
 }
@@ -1278,50 +1279,35 @@ ActionStatus ConditionedAction::isComplete() const
         return finishFirstAction();
     }
 }
+void drawSelector(std::pair<std::shared_ptr<Condition>, std::vector<std::shared_ptr<Action>>>& pair)
+{
+    auto& [condEI, actionsEI] = pair;
+    if (condEI) {
+        if (ImGui::Button("Remove"))
+            condEI = nullptr;
+        else {
+            ImGui::SameLine();
+            ImGui::Text("Else");
+            ImGui::SameLine();
+            condEI->drawSettings();
+        }
+    }
+    else {
+        ImGui::Text("Else If");
+        ImGui::SameLine();
+        condEI = drawConditionSelector(120.f);
+    }
+
+    ImGui::Indent(indent);
+    drawActionSequenceSelector(actionsEI, 100.f);
+    ImGui::Unindent(indent);
+}
 void ConditionedAction::drawSettings() 
 {
     const auto drawActionsSelector = [](auto& actions) 
     {
         ImGui::Indent(indent);
-
-        std::optional<int> rowToDelete;
-        std::optional<std::pair<int, int>> rowsToSwap;
-
-        for (int i = 0; i < int(actions.size()); ++i) 
-        {
-            ImGui::PushID(i);
-
-            ImGui::Bullet();
-            if (ImGui::Button("X", ImVec2(20, 0))) 
-            {
-                if (actions[i])
-                    actions[i] = nullptr;
-                else
-                    rowToDelete = i;
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("^", ImVec2(20, 0)) && i > 0) 
-                rowsToSwap = {i - 1, i};
-            ImGui::SameLine();
-            if (ImGui::Button("v", ImVec2(20, 0)) && i + 1 < int(actions.size())) rowsToSwap = {i, i + 1};
-
-            ImGui::SameLine();
-            if (actions[i])
-                actions[i]->drawSettings();
-            else
-                actions[i] = drawActionSelector(100.f);
-
-            ImGui::PopID();
-        }
-        if (rowToDelete) actions.erase(actions.begin() + *rowToDelete);
-        if (rowsToSwap) std::swap(*(actions.begin() + rowsToSwap->first), *(actions.begin() + rowsToSwap->second));
-
-        ImGui::Bullet();
-        if (ImGui::Button("Add row")) 
-        {
-            actions.push_back(nullptr);
-        }
-
+        drawActionSequenceSelector(actions, 100.f);
         ImGui::Unindent(indent);
     };
 
@@ -1345,44 +1331,7 @@ void ConditionedAction::drawSettings()
 
     ImGui::Indent(indent);
 
-    int elseIfIndex = 0;
-    std::optional<int> elseIfToDelete;
-    std::optional<std::pair<int, int>> elseIfToSwap;
-
-    for (auto& [condEI, actionsEI] : actionsElseIf) {
-        ImGui::PushID(1 + elseIfIndex);
-        if (ImGui::Button("X", ImVec2(20, 0))) elseIfToDelete = elseIfIndex;
-        ImGui::SameLine();
-        if (ImGui::Button("^", ImVec2(20, 0)) && elseIfIndex > 0) elseIfToSwap = {elseIfIndex - 1, elseIfIndex};
-        ImGui::SameLine();
-        if (ImGui::Button("v", ImVec2(20, 0)) && elseIfIndex + 1 < int(actionsElseIf.size())) elseIfToSwap = {elseIfIndex, elseIfIndex + 1};
-        ImGui::SameLine();
-        if (condEI) 
-        {
-            if (ImGui::Button("Remove")) 
-                condEI = nullptr;
-            else 
-            {
-                ImGui::SameLine();
-                ImGui::Text("Else");
-                ImGui::SameLine();
-                condEI->drawSettings();
-            }
-        }
-        else 
-        {
-            ImGui::Text("Else If");
-            ImGui::SameLine();
-            condEI = drawConditionSelector(120.f);
-        }
-        
-        drawActionsSelector(actionsEI);
-        ImGui::PopID();
-
-        ++elseIfIndex;
-    }
-    if (elseIfToDelete) actionsElseIf.erase(actionsElseIf.begin() + elseIfToDelete.value());
-    if (elseIfToSwap) std::swap(*(actionsElseIf.begin() + elseIfToSwap->first), *(actionsElseIf.begin() + elseIfToSwap->second));
+    drawListSelector(actionsElseIf, "else if");
     
     if (!actionsElse.empty())
     {
@@ -1487,7 +1436,7 @@ void RepopMinipetAction::drawSettings()
     ImGui::SameLine();
     ImGui::InputInt("Item model ID", &itemModelId, 0);
     ImGui::SameLine();
-    drawModelIDSelector(agentModelId, "Agent model ID");
+    drawSelector(agentModelId, "Agent model ID");
 
     ImGui::PopID();
 }
@@ -1732,7 +1681,7 @@ void UseHeroSkillAction::drawSettings()
 
     ImGui::Text("Use skill");
     ImGui::SameLine();
-    drawSkillIDSelector(skill);
+    drawSelector(skill);
     ImGui::SameLine();
     ImGui::Text("on hero");
     ImGui::SameLine();

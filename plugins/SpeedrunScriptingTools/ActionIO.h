@@ -3,8 +3,6 @@
 #include <Action.h>
 #include <memory>
 
-std::shared_ptr<Action> readV8Action(InputStream& stream);
 std::shared_ptr<Action> readAction(InputStream& stream);
-
-std::shared_ptr<Action> drawActionSelector(float width);
+void drawActionSequenceSelector(std::vector<std::shared_ptr<Action>>& actions, std::optional<float> width = std::nullopt, bool showAddButton = true);
 std::string_view toString(ActionType type);

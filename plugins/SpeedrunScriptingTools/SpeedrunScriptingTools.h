@@ -6,11 +6,6 @@
 
 #include <ToolboxPlugin.h>
 
-struct Hotkey {
-    long keyData = 0;
-    long modifier = 0;
-};
-
 struct Script {
     std::vector<std::shared_ptr<Condition>> conditions;
     std::vector<std::shared_ptr<Action>> actions;
@@ -51,5 +46,6 @@ private:
     bool runInOutposts = false;
     bool alwaysBlockHotkeyKeys = false;
     bool isInLoadingScreen = false;
+    bool showConstantsWindow = false;
     Hotkey clearScriptsKey{};
 };

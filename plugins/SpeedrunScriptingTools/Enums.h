@@ -17,6 +17,14 @@ enum class EquippedItemSlot {Mainhand, Offhand, Chest, Legs, Head, Feet, Hands};
 enum class TrueFalse {True, False};
 enum class MoveToBehaviour {SendOnce, RepeatIfIdle, ImmediateFinish};
 
+struct Hotkey 
+{
+    long keyData = 0;
+    long modifier = 0;
+
+    bool operator==(const Hotkey& other) const = default;
+};
+
 enum class ActionBehaviourFlag : uint32_t 
 {
     Default = 0,

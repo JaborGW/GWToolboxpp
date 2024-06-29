@@ -3,6 +3,7 @@
 #include <ConditionIO.h>
 #include <enumUtils.h>
 #include <InstanceInfo.h>
+#include <Selectors.h>
 
 #include <GWCA/Constants/Constants.h>
 
@@ -243,32 +244,7 @@ void DisjunctionCondition::drawSettings()
     ImGui::Text("If ONE of the following is true:");
     ImGui::Indent(indent);
 
-    int rowToDelete = -1;
-    for (int i = 0; i < int(conditions.size()); ++i) {
-        ImGui::PushID(i);
-
-        ImGui::Bullet();
-        if (ImGui::Button("X")) {
-            if (conditions[i])
-                conditions[i] = nullptr;
-            else
-                rowToDelete = i;
-        }
-
-        ImGui::SameLine();
-        if (conditions[i])
-            conditions[i]->drawSettings();
-        else
-            conditions[i] = drawConditionSelector(100.f);
-
-        ImGui::PopID();
-    }
-    if (rowToDelete != -1) conditions.erase(conditions.begin() + rowToDelete);
-
-    ImGui::Bullet();
-    if (ImGui::Button("+")) {
-        conditions.push_back(nullptr);
-    }
+    drawConditionSetSelector(conditions, 100.f);
 
     ImGui::Unindent(indent);
     ImGui::PopID();
@@ -325,32 +301,7 @@ void ConjunctionCondition::drawSettings()
     ImGui::Text("If ALL of the following is true:");
     ImGui::Indent(indent);
 
-    int rowToDelete = -1;
-    for (int i = 0; i < int(conditions.size()); ++i) {
-        ImGui::PushID(i);
-
-        ImGui::Bullet();
-        if (ImGui::Button("X")) {
-            if (conditions[i])
-                conditions[i] = nullptr;
-            else
-                rowToDelete = i;
-        }
-
-        ImGui::SameLine();
-        if (conditions[i])
-            conditions[i]->drawSettings();
-        else
-            conditions[i] = drawConditionSelector(100.f);
-
-        ImGui::PopID();
-    }
-    if (rowToDelete != -1) conditions.erase(conditions.begin() + rowToDelete);
-
-    ImGui::Bullet();
-    if (ImGui::Button("+")) {
-        conditions.push_back(nullptr);
-    }
+    drawConditionSetSelector(conditions, 100.f);
 
     ImGui::Unindent(indent);
     ImGui::PopID();
@@ -378,7 +329,7 @@ void IsInMapCondition::drawSettings() {
     ImGui::PushID(drawId());
     ImGui::Text("If player is in map");
     ImGui::SameLine();
-    drawMapIDSelector(id);
+    drawSelector(id);
     ImGui::PopID();
 }
 
@@ -560,7 +511,7 @@ void PlayerHasBuffCondition::drawSettings()
     ImGui::PushID(drawId());
     ImGui::Text("If the player is affected by the skill");
     ImGui::SameLine();
-    drawSkillIDSelector(id);
+    drawSelector(id);
     ImGui::SameLine();
     ImGui::Text("Remaining duration (ms):");
     ImGui::PushItemWidth(50.f);
@@ -642,7 +593,7 @@ void PlayerHasSkillCondition::drawSettings()
     
     ImGui::Text("If the player has skill");
     ImGui::SameLine();
-    drawSkillIDSelector(id);
+    drawSelector(id);
     ImGui::SameLine();
     drawEnumButton(HasSkillRequirement::OnBar, HasSkillRequirement::ReadyToUse, requirement);
     ImGui::SameLine();
@@ -769,7 +720,7 @@ void CurrentTargetIsCastingSkillCondition::drawSettings()
 
     ImGui::Text("If the target is casting the skill");
     ImGui::SameLine();
-    drawSkillIDSelector(id);
+    drawSelector(id);
     ImGui::SameLine();
     ImGui::Text("(0 for none)");
 
@@ -896,7 +847,7 @@ void CurrentTargetModelCondition::drawSettings()
     ImGui::Text("If the target has model");
     ImGui::PushItemWidth(90);
     ImGui::SameLine();
-    drawModelIDSelector(modelId);
+    drawSelector(modelId);
     ImGui::PopID();
 }
 
@@ -1023,30 +974,30 @@ void QuestHasStateCondition::drawSettings()
 /// ------------- KeyIsPressedCondition -------------
 KeyIsPressedCondition::KeyIsPressedCondition(InputStream& stream)
 {
-    stream >> shortcutKey >> shortcutMod >> blockKey;
-    description = makeHotkeyDescription(shortcutKey, shortcutMod);
-    if (shortcutKey && blockKey) 
+    stream >> shortcut.keyData >> shortcut.modifier >> blockKey;
+    description = makeHotkeyDescription(shortcut);
+    if (shortcut.keyData && blockKey) 
     {
-        InstanceInfo::getInstance().requestDisableKey({shortcutKey, shortcutMod});
+        InstanceInfo::getInstance().requestDisableKey(shortcut);
     }
 }
 void KeyIsPressedCondition::serialize(OutputStream& stream) const
 {
     Condition::serialize(stream);
 
-    stream << shortcutKey << shortcutMod << blockKey;
+    stream << shortcut.keyData << shortcut.modifier << blockKey;
 }
 KeyIsPressedCondition::~KeyIsPressedCondition() 
 {
-    if (blockKey) InstanceInfo::getInstance().requestEnableKey({shortcutKey, shortcutMod});
+    if (blockKey) InstanceInfo::getInstance().requestEnableKey(shortcut);
 }
 bool KeyIsPressedCondition::check() const
 {
     if (GW::Chat::GetIsTyping()) return false;
-    bool keyIsPressed = GetAsyncKeyState(shortcutKey) & (1 << 15);
-    if (shortcutMod & ModKey_Control) keyIsPressed &= ImGui::IsKeyDown(ImGuiKey_ModCtrl);
-    if (shortcutMod & ModKey_Shift) keyIsPressed &= ImGui::IsKeyDown(ImGuiKey_ModShift);
-    if (shortcutMod & ModKey_Alt) keyIsPressed &= ImGui::IsKeyDown(ImGuiKey_ModAlt);
+    bool keyIsPressed = GetAsyncKeyState(shortcut.keyData) & (1 << 15);
+    if (shortcut.modifier & ModKey_Control) keyIsPressed &= ImGui::IsKeyDown(ImGuiKey_ModCtrl);
+    if (shortcut.modifier & ModKey_Shift) keyIsPressed &= ImGui::IsKeyDown(ImGuiKey_ModShift);
+    if (shortcut.modifier &ModKey_Alt) keyIsPressed &= ImGui::IsKeyDown(ImGuiKey_ModAlt);
 
     return keyIsPressed;
 }
@@ -1055,12 +1006,12 @@ void KeyIsPressedCondition::drawSettings()
     ImGui::PushID(drawId());
     ImGui::Text("If key is held down:");
     ImGui::SameLine();
-    const auto oldKey = std::pair{shortcutKey, shortcutMod};
-    drawHotkeySelector(shortcutKey, shortcutMod, description, 100.f);
-    if (const auto newKey = std::pair{shortcutKey, shortcutMod}; blockKey && newKey != oldKey)
+    const auto oldShortCut = shortcut;
+    drawSelector(shortcut, description, 100.f);
+    if (blockKey && (oldShortCut.keyData != shortcut.keyData || oldShortCut.modifier != shortcut.modifier))
     {
-        InstanceInfo::getInstance().requestEnableKey(oldKey);
-        InstanceInfo::getInstance().requestDisableKey(newKey);
+        InstanceInfo::getInstance().requestEnableKey(oldShortCut);
+        InstanceInfo::getInstance().requestDisableKey(shortcut);
     }
     ImGui::SameLine();
     
@@ -1068,11 +1019,11 @@ void KeyIsPressedCondition::drawSettings()
     ImGui::Checkbox("Block key", &blockKey);
     if (wasBlocking && !blockKey) 
     {
-        InstanceInfo::getInstance().requestEnableKey({shortcutKey, shortcutMod});
+        InstanceInfo::getInstance().requestEnableKey(shortcut);
     }
     else if (!wasBlocking && blockKey)
     {
-        InstanceInfo::getInstance().requestDisableKey({shortcutKey, shortcutMod});
+        InstanceInfo::getInstance().requestDisableKey(shortcut);
     }
 
     ImGui::PopID();
@@ -1244,7 +1195,7 @@ void NearbyAgentCondition::drawSettings()
         ImGui::BulletText("Uses skill");
         ImGui::SameLine();
         ImGui::PushID(2);
-        drawSkillIDSelector(skill);
+        drawSelector(skill);
         ImGui::PopID();
         ImGui::SameLine();
         ImGui::Text("(0 for any)");
@@ -1265,7 +1216,7 @@ void NearbyAgentCondition::drawSettings()
         ImGui::Bullet();
         ImGui::Text("Has model");
         ImGui::SameLine();
-        drawModelIDSelector(modelId, "id (0 for any)###11");
+        drawSelector(modelId, "id (0 for any)###11");
 
         ImGui::Bullet();
         ImGui::Text("Angle to player forward (degrees)");
@@ -1281,7 +1232,7 @@ void NearbyAgentCondition::drawSettings()
         ImGui::Bullet();
         ImGui::Text("Is within polygon");
         ImGui::SameLine();
-        drawPolygonSelector(polygon);
+        drawSelector(polygon);
 
         ImGui::TreePop();
     }
@@ -1523,7 +1474,7 @@ void PlayerInPolygonCondition::drawSettings()
 
     ImGui::Text("If player is inside polygon");
     ImGui::SameLine();
-    drawPolygonSelector(polygon);
+    drawSelector(polygon);
 
     ImGui::PopID();
 }
@@ -1587,7 +1538,7 @@ void RemainingCooldownCondition::drawSettings()
 
     ImGui::Text("If skill");
     ImGui::SameLine();
-    drawSkillIDSelector(id);
+    drawSelector(id);
     ImGui::SameLine();
     ImGui::Text("has remaining cooldown (in ms)");
     ImGui::SameLine();
