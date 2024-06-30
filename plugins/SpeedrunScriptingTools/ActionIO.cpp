@@ -198,11 +198,11 @@ std::shared_ptr<Action> readAction(InputStream& stream)
     }
 }
 
-void drawSelector(std::shared_ptr<Action>& result, std::optional<float> width = std::nullopt)
+void drawSelector(std::shared_ptr<Action>& result, std::function<void()> drawButtons, std::optional<float> width)
 {
-    if (result) 
+    if (result)
     {
-        result->drawSettings();
+        result->drawSettings(drawButtons);
         return;
     }
     const auto drawActionSelector = [&result](ActionType type) 
@@ -244,7 +244,7 @@ void drawSelector(std::shared_ptr<Action>& result, std::optional<float> width = 
     }
 }
 
-void drawActionSequenceSelector(std::vector<std::shared_ptr<Action>>& actions, std::optional<float> width)
+void drawSelector(std::vector<std::shared_ptr<Action>>& actions, std::optional<float> width)
 {
     const auto deleteAction = [&actions](int i) {
         if (actions[i])
@@ -255,7 +255,7 @@ void drawActionSequenceSelector(std::vector<std::shared_ptr<Action>>& actions, s
     const auto addAction = [&actions, width]() 
     {
         std::shared_ptr<Action> newAction;
-        drawSelector(newAction, width.value_or(ImGui::GetContentRegionAvail().x));
+        drawSelector(newAction, []{}, width.value_or(ImGui::GetContentRegionAvail().x));
         
         if (newAction) actions.push_back(std::move(newAction));
     };

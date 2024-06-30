@@ -2,6 +2,7 @@
 
 #include <io.h>
 #include <Enums.h>
+#include <functional>
 
 // This struct is append only, do NOT change the ordering of the values or add new ones at any place but the end
 enum class ActionType : int {
@@ -55,7 +56,7 @@ public:
     virtual void initialAction() { m_hasBeenStarted = true; }
     virtual void finalAction() { m_hasBeenStarted = false; }
     virtual ActionStatus isComplete() const { return ActionStatus::Complete; }
-    virtual void drawSettings() = 0;
+    virtual void drawSettings(std::function<void()> drawButtons) = 0;
     virtual void serialize(OutputStream& stream) const { stream << "A" << type();}
     virtual ActionBehaviourFlags behaviour() const { return ActionBehaviourFlag::Default; }
     bool hasBeenStarted() const { return m_hasBeenStarted; }

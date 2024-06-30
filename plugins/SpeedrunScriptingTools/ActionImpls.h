@@ -22,7 +22,7 @@ public:
     ActionType type() const final { return ActionType::MoveTo; }
     void initialAction() final;
     ActionStatus isComplete() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
 
@@ -41,7 +41,7 @@ public:
     ActionType type() const final { return ActionType::MoveToTargetPosition; }
     void initialAction() final;
     ActionStatus isComplete() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
 
@@ -62,7 +62,7 @@ public:
     ActionType type() const final { return ActionType::Cast; }
     void initialAction() final;
     ActionStatus isComplete() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -79,7 +79,7 @@ public:
     ActionType type() const final { return ActionType::CastBySlot; }
     void initialAction() final;
     ActionStatus isComplete() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -96,7 +96,7 @@ public:
     ChangeTargetAction(InputStream&);
     ActionType type() const final { return ActionType::ChangeTarget; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
 
@@ -133,7 +133,7 @@ public:
     UseItemAction(InputStream&);
     ActionType type() const final { return ActionType::UseItem; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::ImmediateFinish; }
 
@@ -147,7 +147,7 @@ public:
     EquipItemAction(InputStream&);
     ActionType type() const final { return ActionType::EquipItem; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::ImmediateFinish | ActionBehaviourFlag::CanBeRunInOutpost; }
 
@@ -163,7 +163,7 @@ public:
     UnequipItemAction(InputStream&);
     ActionType type() const final { return ActionType::UnequipItem; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::ImmediateFinish | ActionBehaviourFlag::CanBeRunInOutpost; }
 
@@ -177,7 +177,7 @@ public:
     SendDialogAction(InputStream&);
     ActionType type() const final { return ActionType::SendDialog; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::ImmediateFinish | ActionBehaviourFlag::CanBeRunInOutpost; }
 
@@ -193,7 +193,7 @@ public:
     void initialAction() final;
     void finalAction() final;
     ActionStatus isComplete() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
 
@@ -212,7 +212,7 @@ public:
     ActionType type() const final { return ActionType::Wait; }
     void initialAction() final;
     ActionStatus isComplete() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
 
@@ -227,7 +227,7 @@ public:
     SendChatAction(InputStream&);
     ActionType type() const final { return ActionType::SendChat; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final;
 
@@ -242,7 +242,7 @@ public:
     CancelAction(InputStream&){}
     ActionType type() const final { return ActionType::Cancel; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost | ActionBehaviourFlag::ImmediateFinish; }
 };
 
@@ -252,7 +252,7 @@ public:
     DropBuffAction(InputStream&);
     ActionType type() const final { return ActionType::DropBuff; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -266,7 +266,7 @@ public:
     ActionType type() const final { return ActionType::Conditioned; }
     void initialAction() final;
     ActionStatus isComplete() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final;
 
@@ -286,7 +286,7 @@ public:
     void initialAction() final;
     void finalAction() final;
     ActionStatus isComplete() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
 
@@ -305,7 +305,7 @@ public:
     PingHardModeAction(InputStream&) : PingHardModeAction(){}
     ActionType type() const final { return ActionType::PingHardMode; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::ImmediateFinish | ActionBehaviourFlag::CanBeRunInOutpost; }
 };
 
@@ -315,7 +315,7 @@ public:
     PingTargetAction(InputStream&) : PingTargetAction() {}
     ActionType type() const final { return ActionType::PingTarget; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::ImmediateFinish | ActionBehaviourFlag::CanBeRunInOutpost; }
 
 private:
@@ -330,7 +330,7 @@ public:
     AutoAttackTargetAction(InputStream&) : AutoAttackTargetAction() {}
     ActionType type() const final { return ActionType::AutoAttackTarget; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
 };
 
 class ChangeWeaponSetAction : public Action {
@@ -339,7 +339,7 @@ public:
     ChangeWeaponSetAction(InputStream&);
     ActionType type() const final { return ActionType::ChangeWeaponSet; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
 
@@ -353,7 +353,7 @@ public:
     StoreTargetAction(InputStream&);
     ActionType type() const final { return ActionType::StoreTarget; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::ImmediateFinish | ActionBehaviourFlag::CanBeRunInOutpost; }
 
@@ -367,7 +367,7 @@ public:
     RestoreTargetAction(InputStream&);
     ActionType type() const final { return ActionType::RestoreTarget; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::ImmediateFinish | ActionBehaviourFlag::CanBeRunInOutpost; }
 
@@ -381,7 +381,7 @@ public:
     StopScriptAction(InputStream&){}
     ActionType type() const final { return ActionType::StopScript; }
     ActionStatus isComplete() const final { return ActionStatus::Error; }
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
 };
 
@@ -391,7 +391,7 @@ public:
     LogOutAction(InputStream&) {}
     ActionType type() const final { return ActionType::LogOut; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
 };
 
@@ -401,7 +401,7 @@ public:
     UseHeroSkillAction(InputStream&);
     ActionType type() const final { return ActionType::UseHeroSkill; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -415,7 +415,7 @@ public:
     ClearTargetAction(InputStream&) {}
     ActionType type() const final { return ActionType::ClearTarget; }
     void initialAction() final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost | ActionBehaviourFlag::ImmediateFinish; }
 };
 
@@ -425,7 +425,7 @@ public:
     WaitUntilAction(InputStream&);
     ActionType type() const final { return ActionType::WaitUntil; }
     ActionStatus isComplete() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
 

@@ -33,6 +33,21 @@ namespace {
     }
 } // namespace
 
+void drawSelector(int& value)
+{
+    ImGui::InputInt("", &value, 0);
+}
+void drawSelector(float& value)
+{
+    ImGui::InputFloat("", &value);
+}
+void drawSelector(GW::Vec2f& pos)
+{
+    ImGui::InputFloat("x", &pos.x);
+    ImGui::SameLine();
+    ImGui::InputFloat("y", &pos.y);
+}
+
 std::string makeHotkeyDescription(Hotkey key)
 {
     char newDescription[256];
@@ -118,7 +133,7 @@ void drawSelector(Trigger& trigger, float width, Hotkey& hotkey)
     }
 }
 
-void drawSelector(std::vector<GW::Vec2f>& polygon)
+void drawSelector(std::vector<GW::Vec2f>& polygon, std::function<void()> drawButtons)
 {
     ImGui::PushItemWidth(200);
     if (ImGui::Button("Add Polygon Point")) {
@@ -126,6 +141,7 @@ void drawSelector(std::vector<GW::Vec2f>& polygon)
             polygon.emplace_back(player->pos.x, player->pos.y);
         }
     }
+    drawButtons();
 
     ImGui::Indent();
 

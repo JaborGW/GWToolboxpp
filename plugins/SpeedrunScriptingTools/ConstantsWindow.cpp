@@ -8,28 +8,41 @@
 #include <enumUtils.h>
 #include <Selectors.h>
 
+template<typename T>
+void drawSelector(NamedConstant<T>& constant)
+{
+    drawSelector(constant.value);
+    ImGui::SameLine();
+    ImGui::InputText("Name", &constant.name);
+}
+
 template<typename ConstantT>
-void drawSection(int id)
+void drawSection(int id, std::string_view name)
 {
     ImGui::PushID(id);
-    auto& constantsManager = ConstantsManager::getInstance();
-    auto& constants = constantsManager.list<ConstantT>();
-    for (auto& constant : constants) 
+    const auto groupName = std::string{name} + "s";
+    if (ImGui::TreeNodeEx(groupName.c_str(), ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth))
     {
-        ImGui::PushID(constant.id);
-        
-        ImGui::Bullet();
-        ImGui::InputText("Name",&constant.name);
-        ImGui::SameLine();
-        ImGui::PushItemWidth(150.f);
-        //drawSelector(constant.value);
+        auto& constantsManager = ConstantsManager::getInstance();
+        auto& constants = constantsManager.list<ConstantT>();
+        drawListSelector(constants, name.data());
 
-        ImGui::PopID();
+        ImGui::TreePop();
     }
+    ImGui::PopID();
+}
 
-    if(ImGui::Button("Add named constant"))
-    {
-        constantsManager.addNew<ConstantT>();
+template <typename ConstantT>
+void drawCollapsingSection(int id, std::string_view name)
+{
+    ImGui::PushID(id);
+    const auto groupName = std::string{name} + "s";
+    if (ImGui::TreeNodeEx(groupName.c_str(), ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+        auto& constantsManager = ConstantsManager::getInstance();
+        auto& constants = constantsManager.list<ConstantT>();
+        drawListSelector(constants, name.data());
+
+        ImGui::TreePop();
     }
     ImGui::PopID();
 }
@@ -43,12 +56,13 @@ void drawConstantsWindow(bool& showWindow)
     }
     
     int id = 0;
-    drawSection<int>(id++);
-    drawSection<float>(id++);
-    drawSection<ConstantsManager::Position>(id++);
-    drawSection<ConstantsManager::Polygon>(id++);
-    drawSection<ConstantsManager::ActionSequence>(id++);
-    drawSection<ConstantsManager::ConditionSet>(id++);
+    ImGui::PushItemWidth(100.f);
+    drawSection<int>(id++, "Integer constant");
+    drawSection<float>(id++, "Float constant");
+    drawSection<ConstantsManager::Position>(id++, "Position constant");
+    drawSection<ConstantsManager::Polygon>(id++, "Polygon constant");
+    drawSection<ConstantsManager::ActionSequence>(id++, "Action sequence");
+    drawSection<ConstantsManager::ConditionSet>(id++, "Condition set");
 
 
     ImGui::End();

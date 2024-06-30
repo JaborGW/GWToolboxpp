@@ -2,6 +2,7 @@
 
 #include <io.h>
 
+#include <functional>
 // This struct is append only, do NOT change the ordering of the values or add new ones at any place but the end
 enum class ConditionType : int {
     Not,
@@ -62,7 +63,7 @@ public:
     virtual ~Condition() {}
     virtual ConditionType type() const = 0;
     virtual bool check() const { return true; };
-    virtual void drawSettings() {}
+    virtual void drawSettings(std::function<void()> drawButtons) = 0;
     virtual void serialize(OutputStream& stream) const { stream << "C" << type(); }
 
 protected:

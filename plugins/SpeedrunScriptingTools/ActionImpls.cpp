@@ -218,7 +218,7 @@ ActionStatus MoveToAction::isComplete() const
 
     return distance < accuracy + eps ? ActionStatus::Complete : ActionStatus::Running;
 }
-void MoveToAction::drawSettings(){
+void MoveToAction::drawSettings(std::function<void()> drawButtons){
     ImGui::PushID(drawId());
 
     ImGui::Text("Move to:");
@@ -231,6 +231,7 @@ void MoveToAction::drawSettings(){
     ImGui::InputFloat("Accuracy", &accuracy, 0.0f, 0.0f);
     ImGui::SameLine();
     drawEnumButton(MoveToBehaviour::SendOnce, MoveToBehaviour::ImmediateFinish, moveBehaviour, 0, 310.f);
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -297,7 +298,7 @@ ActionStatus MoveToTargetPositionAction::isComplete() const
 
     return distance < accuracy + eps ? ActionStatus::Complete : ActionStatus::Running;
 }
-void MoveToTargetPositionAction::drawSettings()
+void MoveToTargetPositionAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
@@ -307,6 +308,7 @@ void MoveToTargetPositionAction::drawSettings()
     ImGui::InputFloat("Accuracy", &accuracy, 0.0f, 0.0f);
     ImGui::SameLine();
     drawEnumButton(MoveToBehaviour::SendOnce, MoveToBehaviour::ImmediateFinish, moveBehaviour, 0, 310.f);
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -365,13 +367,14 @@ ActionStatus CastAction::isComplete() const
 
     return (hasBegunCasting && static_cast<GW::Constants::SkillID>(player->skill) != id) ? ActionStatus::Complete : ActionStatus::Running;
 }
-void CastAction::drawSettings()
+void CastAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
     ImGui::Text("Use skill");
     ImGui::SameLine();
     drawSelector(id);
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -423,7 +426,7 @@ ActionStatus CastBySlotAction::isComplete() const
 
     return (hasBegunCasting && static_cast<GW::Constants::SkillID>(player->skill) != id) ? ActionStatus::Complete : ActionStatus::Running;
 }
-void CastBySlotAction::drawSettings()
+void CastBySlotAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
@@ -433,6 +436,7 @@ void CastBySlotAction::drawSettings()
     ImGui::InputInt("Slot", reinterpret_cast<int*>(&slot), 0);
     if (slot < 1) slot = 1;
     if (slot > 8) slot = 8;
+    drawButtons();
     
     ImGui::PopID();
 }
@@ -614,7 +618,7 @@ void ChangeTargetAction::initialAction()
 
     GW::GameThread::Enqueue([id = currentBestTarget->agent_id] { GW::Agents::ChangeTarget(id); });
 }
-void ChangeTargetAction::drawSettings()
+void ChangeTargetAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
@@ -716,11 +720,12 @@ void ChangeTargetAction::drawSettings()
             ImGui::Bullet();
             ImGui::Text("Is within polygon");
             ImGui::SameLine();
-            drawSelector(polygon);
+            drawSelector(polygon, []{});
         }
 
         ImGui::TreePop();
     }
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -747,7 +752,7 @@ void UseItemAction::initialAction()
         GW::Items::UseItem(item);
     });
 }
-void UseItemAction::drawSettings()
+void UseItemAction::drawSettings(std::function<void()> drawButtons)
 {
     const auto item = FindMatchingItem(id);
     const auto itemName = item ? InstanceInfo::getInstance().getDecodedItemName(item->item_id) : "";
@@ -760,6 +765,7 @@ void UseItemAction::drawSettings()
     ImGui::PushItemWidth(90);
     ImGui::SameLine();
     ImGui::InputInt("model ID", &id, 0);
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -784,7 +790,7 @@ void EquipItemAction::initialAction()
 
     GW::GameThread::Enqueue([item] { SafeEquip(item); });
 }
-void EquipItemAction::drawSettings()
+void EquipItemAction::drawSettings(std::function<void()> drawButtons)
 {
     const auto item = FindMatchingItem(id, hasModstruct ? std::optional{modstruct} : std::nullopt);
     const auto itemName = item ? InstanceInfo::getInstance().getDecodedItemName(item->item_id) : "";
@@ -816,6 +822,7 @@ void EquipItemAction::drawSettings()
             hasModstruct = true;
         }
     }
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -844,7 +851,7 @@ void UnequipItemAction::initialAction()
 
     GW::GameThread::Enqueue([equippedItem, bag = emptySlot->first, itemSlot = emptySlot->second]{ GW::Items::MoveItem(equippedItem, bag, itemSlot); });
 }
-void UnequipItemAction::drawSettings()
+void UnequipItemAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
@@ -852,6 +859,7 @@ void UnequipItemAction::drawSettings()
     ImGui::PushItemWidth(90);
     ImGui::SameLine();
     drawEnumButton(EquippedItemSlot::Mainhand, EquippedItemSlot::Hands, slot);
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -875,7 +883,7 @@ void SendDialogAction::initialAction()
         GW::Agents::SendDialog(id);
     });
 }
-void SendDialogAction::drawSettings()
+void SendDialogAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
@@ -883,6 +891,7 @@ void SendDialogAction::drawSettings()
     ImGui::PushItemWidth(90);
     ImGui::SameLine();
     ImGui::InputInt("ID", &id, 0);
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -943,13 +952,14 @@ ActionStatus GoToTargetAction::isComplete() const
             return ActionStatus::Complete;
     }
 }
-void GoToTargetAction::drawSettings()
+void GoToTargetAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
     ImGui::Text("Talk with NPC. Finish action");
     ImGui::SameLine();
     drawEnumButton(GoToTargetFinishCondition::None, GoToTargetFinishCondition::DialogOpen, finishCondition, 0, 250.f);
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -977,7 +987,7 @@ ActionStatus WaitAction::isComplete() const
     const auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
     return (elapsedTime > waitTime) ? ActionStatus::Complete : ActionStatus::Running;
 }
-void WaitAction::drawSettings()
+void WaitAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
@@ -985,6 +995,7 @@ void WaitAction::drawSettings()
     ImGui::PushItemWidth(90);
     ImGui::SameLine();
     ImGui::InputInt("ms", &waitTime, 0);
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1036,7 +1047,7 @@ void SendChatAction::initialAction()
     GW::GameThread::Enqueue([channelId, message = this->message] { GW::Chat::SendChat(channelId, message.c_str()); });
 }
 
-void SendChatAction::drawSettings()
+void SendChatAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
@@ -1046,6 +1057,7 @@ void SendChatAction::drawSettings()
     ImGui::PushItemWidth(300);
     ImGui::SameLine();
     ImGui::InputText("", &message);
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1066,11 +1078,12 @@ void CancelAction::initialAction()
     GW::GameThread::Enqueue([]{ GW::UI::Keypress(GW::UI::ControlAction_CancelAction); });
 }
 
-void CancelAction::drawSettings()
+void CancelAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
     ImGui::Text("Cancel Action");
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1097,7 +1110,7 @@ void DropBuffAction::initialAction()
         GW::Effects::DropBuff(buffId);
     });
 }
-void DropBuffAction::drawSettings()
+void DropBuffAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
@@ -1105,6 +1118,7 @@ void DropBuffAction::drawSettings()
     ImGui::PushItemWidth(90);
     ImGui::SameLine();
     drawSelector(id);
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1279,82 +1293,64 @@ ActionStatus ConditionedAction::isComplete() const
         return finishFirstAction();
     }
 }
-void drawSelector(std::pair<std::shared_ptr<Condition>, std::vector<std::shared_ptr<Action>>>& pair)
+void drawSelector(std::pair<std::shared_ptr<Condition>, std::vector<std::shared_ptr<Action>>>& pair, std::function<void()> drawButtons)
 {
     auto& [condEI, actionsEI] = pair;
     if (condEI) {
-        if (ImGui::Button("Remove"))
+        if (ImGui::Button("X"))
             condEI = nullptr;
         else {
             ImGui::SameLine();
             ImGui::Text("Else");
             ImGui::SameLine();
-            condEI->drawSettings();
+            condEI->drawSettings([]{});
         }
     }
     else {
         ImGui::Text("Else If");
         ImGui::SameLine();
-        drawSelector(condEI, 120.f);
+        drawSelector(condEI, []{}, 100.f);
     }
+    drawButtons();
 
     ImGui::Indent(indent);
-    drawActionSequenceSelector(actionsEI, 100.f);
+    drawSelector(actionsEI, 100.f);
     ImGui::Unindent(indent);
 }
-void ConditionedAction::drawSettings() 
+void ConditionedAction::drawSettings(std::function<void()> drawButtons) 
 {
-    const auto drawActionsSelector = [](auto& actions) 
-    {
-        ImGui::Indent(indent);
-        drawActionSequenceSelector(actions, 100.f);
-        ImGui::Unindent(indent);
-    };
-
     ImGui::PushID(drawId());
 
-    ImGui::PushID(0);
+    // IF
+    ImGui::PushID(actionsElseIf.size());
     if (cond) 
     {
-        if (ImGui::Button("Remove")) 
+        if (ImGui::Button("X")) 
             cond = nullptr;
         else 
         {
             ImGui::SameLine();
-            cond->drawSettings();
+            cond->drawSettings([]{});
         }
     }
     else    
-        drawSelector(cond);
-    drawActionsSelector(actionsIf);
-    ImGui::PopID();
-
+        drawSelector(cond, []{});
+    drawButtons();
     ImGui::Indent(indent);
-
-    drawListSelector(actionsElseIf, "else if");
-    
-    if (!actionsElse.empty())
-    {
-        ImGui::PushID(1 + actionsElseIf.size());
-        if (ImGui::Button("X")) actionsElse.clear();
-        ImGui::SameLine();
-        ImGui::Text("Else");
-
-        drawActionsSelector(actionsElse);
-        ImGui::PopID();
-    }
-
-    if (ImGui::Button("Add else if"))
-        actionsElseIf.push_back({nullptr, {}});
-    
-    if (actionsElse.empty())
-    {
-        ImGui::SameLine();
-        if (ImGui::Button("Add else"))
-            actionsElse.push_back(nullptr);
-    }
-    
+    drawSelector(actionsIf, 100.f);
     ImGui::Unindent(indent);
+    ImGui::PopID();
+    
+    // ELSE IF
+    //drawListSelector(actionsElseIf, "else if");
+    
+    // ELSE
+    ImGui::PushID(1 + actionsElseIf.size());
+    ImGui::Text("Else");
+    ImGui::Indent(indent);
+    drawSelector(actionsElse, 100.f);
+    ImGui::Unindent(indent);
+    ImGui::PopID();
 
     ImGui::PopID();
 }
@@ -1422,7 +1418,7 @@ ActionStatus RepopMinipetAction::isComplete() const
     return (hasUsedItem && agentHasSpawned) ? ActionStatus::Complete : ActionStatus::Running;
 }
 
-void RepopMinipetAction::drawSettings()
+void RepopMinipetAction::drawSettings(std::function<void()> drawButtons)
 {
     const auto item = FindMatchingItem(itemModelId);
     const auto itemName = item ? InstanceInfo::getInstance().getDecodedItemName(item->item_id) : "";
@@ -1437,6 +1433,7 @@ void RepopMinipetAction::drawSettings()
     ImGui::InputInt("Item model ID", &itemModelId, 0);
     ImGui::SameLine();
     drawSelector(agentModelId, "Agent model ID");
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1456,11 +1453,12 @@ void PingHardModeAction::initialAction()
         GW::UI::SendUIMessage(GW::UI::UIMessage::kSendCallTarget, &packet);
     });
 }
-void PingHardModeAction::drawSettings()
+void PingHardModeAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
     ImGui::Text("Ping hard mode");
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1488,13 +1486,14 @@ void PingTargetAction::initialAction()
         GW::UI::SendUIMessage(GW::UI::UIMessage::kSendCallTarget, &packet);
     });
 }
-void PingTargetAction::drawSettings()
+void PingTargetAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
     ImGui::Text("Ping current target");
     ImGui::SameLine();
     ImGui::Checkbox("Ping same agent only once per instance", &onlyOncePerInstance);
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1509,12 +1508,13 @@ void AutoAttackTargetAction::initialAction()
     
     GW::GameThread::Enqueue([currentTarget]{ GW::Agents::InteractAgent(currentTarget); });
 }
-void AutoAttackTargetAction::drawSettings()
+void AutoAttackTargetAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
     ImGui::Text("Auto-attack current target");
-
+    drawButtons();
+    
     ImGui::PopID();
 }
 
@@ -1536,7 +1536,7 @@ void ChangeWeaponSetAction::initialAction()
     GW::UI::Keypress((GW::UI::ControlAction)((uint32_t)GW::UI::ControlAction_ActivateWeaponSet1 + id - 1));
 }
 
-void ChangeWeaponSetAction::drawSettings()
+void ChangeWeaponSetAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
@@ -1546,6 +1546,7 @@ void ChangeWeaponSetAction::drawSettings()
     ImGui::InputInt("Slot", &id, 0);
     if (id < 1) id = 1;
     if (id > 4) id = 4;
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1567,11 +1568,12 @@ void StoreTargetAction::initialAction()
     InstanceInfo::getInstance().storeTarget(GW::Agents::GetTargetAsAgentLiving(), id);
 }
 
-void StoreTargetAction::drawSettings()
+void StoreTargetAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
     ImGui::Text("Store current target");
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1596,21 +1598,23 @@ void RestoreTargetAction::initialAction()
     GW::GameThread::Enqueue([id = agent->agent_id]{ GW::Agents::ChangeTarget(id); });
 }
 
-void RestoreTargetAction::drawSettings()
+void RestoreTargetAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
     ImGui::Text("Restore target");
+    drawButtons();
 
     ImGui::PopID();
 }
 
 /// ------------- StopScriptAction -------------
-void StopScriptAction::drawSettings()
+void StopScriptAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
     ImGui::Text("Stop script");
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1624,11 +1628,12 @@ void LogOutAction::initialAction()
     SendUIMessage(GW::UI::UIMessage::kLogout, &packet);
 }
 
-void LogOutAction::drawSettings()
+void LogOutAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
     ImGui::Text("Log out");
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1675,7 +1680,7 @@ void UseHeroSkillAction::initialAction()
     GW::GameThread::Enqueue([controlKey = static_cast<GW::UI::ControlAction>(controlKey)] { GW::UI::Keypress(controlKey); });
 }
 
-void UseHeroSkillAction::drawSettings()
+void UseHeroSkillAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
@@ -1686,6 +1691,7 @@ void UseHeroSkillAction::drawSettings()
     ImGui::Text("on hero");
     ImGui::SameLine();
     drawEnumButton(GW::Constants::HeroID::NoHero, GW::Constants::HeroID::ZeiRi, hero);
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1699,11 +1705,12 @@ void ClearTargetAction::initialAction()
     });
 }
 
-void ClearTargetAction::drawSettings()
+void ClearTargetAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
     ImGui::Text("Clear Target");
+    drawButtons();
 
     ImGui::PopID();
 }
@@ -1728,16 +1735,17 @@ void WaitUntilAction::serialize(OutputStream& stream) const
         stream << missingContentToken;
 }
 
-void WaitUntilAction::drawSettings()
+void WaitUntilAction::drawSettings(std::function<void()> drawButtons)
 {
     ImGui::PushID(drawId());
 
     ImGui::Text("Wait until is fulfilled: ");
     ImGui::SameLine();
     if (condition)
-        condition->drawSettings();
+        condition->drawSettings([]{});
     else
-        drawSelector(condition);
+        drawSelector(condition, []{});
+    drawButtons();
 
     ImGui::PopID();
 }

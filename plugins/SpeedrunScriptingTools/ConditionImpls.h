@@ -10,6 +10,7 @@
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/GameContainers/GamePos.h>
 
+#include <functional>
 #include <chrono>
 
 class NegatedCondition : public Condition {
@@ -18,7 +19,7 @@ public:
     NegatedCondition(InputStream&);
     ConditionType type() const final { return ConditionType::Not; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -31,7 +32,7 @@ public:
     DisjunctionCondition(InputStream&);
     ConditionType type() const final { return ConditionType::Or; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -44,7 +45,7 @@ public:
     ConjunctionCondition(InputStream&);
     ConditionType type() const final { return ConditionType::And; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -57,7 +58,7 @@ public:
     IsInMapCondition(InputStream&);
     ConditionType type() const final { return ConditionType::IsInMap; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -70,7 +71,7 @@ public:
     QuestHasStateCondition(InputStream&);
     ConditionType type() const final { return ConditionType::QuestHasState; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -84,7 +85,7 @@ public:
     PartyPlayerCountCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PartyPlayerCount; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -97,7 +98,7 @@ public:
     PartyHasLoadedInCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PartyHasLoadedIn; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -111,7 +112,7 @@ public:
     InstanceProgressCondition(InputStream&);
     ConditionType type() const final { return ConditionType::InstanceProgress; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -124,7 +125,7 @@ public:
     OnlyTriggerOnceCondition(InputStream&){}
     ConditionType type() const final { return ConditionType::OnlyTriggerOncePerInstance; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
 
 private:
     mutable int triggeredLastInInstanceId = 0;
@@ -136,7 +137,7 @@ public:
     PlayerIsNearPositionCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PlayerIsNearPosition; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -150,7 +151,7 @@ public:
     PlayerHasBuffCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PlayerHasBuff; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -167,7 +168,7 @@ public:
     PlayerHasSkillCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PlayerHasSkill; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -181,7 +182,7 @@ public:
     PlayerHasClassCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PlayerHasClass; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -195,7 +196,7 @@ public:
     PlayerHasEnergyCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PlayerHasEnergy; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -209,7 +210,7 @@ public:
     PlayerHasNameCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PlayerHasName; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -222,7 +223,7 @@ public:
     CurrentTargetIsCastingSkillCondition(InputStream&);
     ConditionType type() const final { return ConditionType::CurrentTargetIsUsingSkill; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -235,7 +236,7 @@ public:
     CurrentTargetDistanceCondition(InputStream&);
     ConditionType type() const final { return ConditionType::CurrentTargetDistance; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -249,7 +250,7 @@ public:
     CurrentTargetHasHpBelowCondition(InputStream&);
     ConditionType type() const final { return ConditionType::CurrentTargetHasHpBelow; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -262,7 +263,7 @@ public:
     CurrentTargetAllegianceCondition(InputStream&);
     ConditionType type() const final { return ConditionType::CurrentTargetAllegiance; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -275,7 +276,7 @@ public:
     CurrentTargetModelCondition(InputStream&);
     ConditionType type() const final { return ConditionType::CurrentTargetHasModel; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -288,7 +289,7 @@ public:
     HasPartyWindowAllyOfNameCondition(InputStream&);
     ConditionType type() const final { return ConditionType::HasPartyWindowAllyOfName; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -301,7 +302,7 @@ public:
     PartyMemberStatusCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PartyMemberStatus; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -316,7 +317,7 @@ public:
     ~KeyIsPressedCondition();
     ConditionType type() const final { return ConditionType::KeyIsPressed; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -331,7 +332,7 @@ public:
     InstanceTimeCondition(InputStream&);
     ConditionType type() const final { return ConditionType::InstanceTime; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -344,7 +345,7 @@ public:
     NearbyAgentCondition(InputStream&);
     ConditionType type() const final { return ConditionType::NearbyAgent; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -375,7 +376,7 @@ public:
     CanPopAgentCondition(InputStream&) {}
     ConditionType type() const final { return ConditionType::CanPopAgent; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
 };
 
 class PlayerIsIdleCondition : public Condition {
@@ -384,7 +385,7 @@ public:
     PlayerIsIdleCondition(InputStream&) {}
     ConditionType type() const final { return ConditionType::PlayerIsIdle; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
 };
 
 class PlayerHasItemEquippedCondition : public Condition {
@@ -393,7 +394,7 @@ public:
     PlayerHasItemEquippedCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PlayerHasItemEquipped; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -406,7 +407,7 @@ public:
     PlayerHasHpBelowCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PlayerHasHpBelow; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -419,7 +420,7 @@ public:
     ItemInInventoryCondition(InputStream&);
     ConditionType type() const final { return ConditionType::ItemInInventory; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -432,7 +433,7 @@ public:
     PlayerStatusCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PlayerStatus; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -445,7 +446,7 @@ public:
     CurrentTargetStatusCondition(InputStream&);
     ConditionType type() const final { return ConditionType::CurrentTargetStatus; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -458,7 +459,7 @@ public:
     PlayerInPolygonCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PlayerInPolygon; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -471,7 +472,7 @@ public:
     InstanceTypeCondition(InputStream&);
     ConditionType type() const final { return ConditionType::InstanceType; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -484,7 +485,7 @@ public:
     RemainingCooldownCondition(InputStream&);
     ConditionType type() const final { return ConditionType::RemainingCooldown; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -501,7 +502,7 @@ public:
     FoeCountCondition(InputStream&);
     ConditionType type() const final { return ConditionType::FoeCount; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -514,7 +515,7 @@ public:
     MoraleCondition(InputStream&);
     ConditionType type() const final { return ConditionType::PlayerMorale; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -527,7 +528,7 @@ public:
     FalseCondition(InputStream&) {}
     ConditionType type() const final { return ConditionType::False; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
 };
 
 class TrueCondition : public Condition {
@@ -536,7 +537,7 @@ public:
     TrueCondition(InputStream&) {}
     ConditionType type() const final { return ConditionType::True; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
 };
 
 class OnceCondition : public Condition {
@@ -545,7 +546,7 @@ public:
     OnceCondition(InputStream&);
     ConditionType type() const final { return ConditionType::Once; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -559,7 +560,7 @@ public:
     UntilCondition(InputStream&);
     ConditionType type() const final { return ConditionType::Until; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -574,7 +575,7 @@ public:
     AfterCondition(InputStream&);
     ConditionType type() const final { return ConditionType::After; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -589,7 +590,7 @@ public:
     ToggleCondition(InputStream&);
     ConditionType type() const final { return ConditionType::Toggle; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -606,7 +607,7 @@ public:
     CurrentTargetNameCondition(InputStream&);
     ConditionType type() const final { return ConditionType::CurrentTargetName; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:
@@ -619,7 +620,7 @@ public:
     ThrottleCondition(InputStream&);
     ConditionType type() const final { return ConditionType::Throttle; }
     bool check() const final;
-    void drawSettings() final;
+    void drawSettings(std::function<void()> drawButtons) final;
     void serialize(OutputStream&) const final;
 
 private:

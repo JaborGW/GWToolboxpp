@@ -249,17 +249,18 @@ void SpeedrunScriptingTools::clear()
         script.triggered = false;
 }
 
-void drawSelector(Script& script) 
+void drawSelector(Script& script, std::function<void()> drawButtons) 
 {
     const auto treeHeader = makeScriptHeaderName(script);
     const auto treeOpen = ImGui::TreeNodeEx(treeHeader.c_str(), ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth);
-
+    drawButtons();
     if (treeOpen) 
     {
-        drawConditionSetSelector(script.conditions);
+        ImGui::Dummy(ImVec2(0.f, 5.f));
+        drawSelector(script.conditions);
 
         ImGui::Separator();
-        drawActionSequenceSelector(script.actions);
+        drawSelector(script.actions);
 
         // Script settings
         ImGui::Separator();

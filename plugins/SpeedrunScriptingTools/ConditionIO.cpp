@@ -322,11 +322,11 @@ switch (static_cast<ConditionType>(type))
 }
 }
 
-void drawSelector(std::shared_ptr<Condition>& result, std::optional<float> width)
+void drawSelector(std::shared_ptr<Condition>& result, std::function<void()> drawButtons, std::optional<float> width)
 {
     if (result) 
     {
-        result->drawSettings();
+        result->drawSettings(drawButtons);
         return;
     }
     const auto drawConditionSelector = [&result](ConditionType type)
@@ -377,7 +377,7 @@ void drawSelector(std::shared_ptr<Condition>& result, std::optional<float> width
     }
 }
 
-void drawConditionSetSelector(std::vector<std::shared_ptr<Condition>>& conditions, std::optional<float> width)
+void drawSelector(std::vector<std::shared_ptr<Condition>>& conditions, std::optional<float> width)
 {
     const auto deleteCondition = [&conditions](int i) {
         if (conditions[i])
@@ -387,7 +387,7 @@ void drawConditionSetSelector(std::vector<std::shared_ptr<Condition>>& condition
     };
     const auto addCondition = [&conditions, width]() {
         std::shared_ptr<Condition> newCondition;
-        drawSelector(newCondition, width.value_or(ImGui::GetContentRegionAvail().x));
+        drawSelector(newCondition, []{}, width.value_or(ImGui::GetContentRegionAvail().x));
 
         if (newCondition) conditions.push_back(std::move(newCondition));
     };
