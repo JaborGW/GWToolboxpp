@@ -133,9 +133,9 @@ void drawSelector(Trigger& trigger, float width, Hotkey& hotkey)
     }
 }
 
-void drawSelector(std::vector<GW::Vec2f>& polygon, std::function<void()> drawButtons)
+void drawSelector(std::vector<GW::Vec2f>& polygon, std::function<void()> drawButtons, std::optional<float> width)
 {
-    ImGui::PushItemWidth(200);
+    ImGui::PushItemWidth(width.value_or(200.f));
     if (ImGui::Button("Add Polygon Point")) {
         if (const auto player = GW::Agents::GetPlayerAsAgentLiving()) {
             polygon.emplace_back(player->pos.x, player->pos.y);

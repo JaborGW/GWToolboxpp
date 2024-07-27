@@ -262,3 +262,26 @@ void drawSelector(std::vector<std::shared_ptr<Action>>& actions, std::optional<f
         
     drawListSelector(actions, "action", width, deleteAction, addAction);
 }
+
+void drawCollapsingSelector(std::vector<std::shared_ptr<Action>>& actions, const std::vector<std::string_view>& names, std::optional<float> width)
+{
+    const auto deleteAction = [&actions](int i) {
+        if (actions[i])
+            actions[i] = nullptr;
+        else
+            actions.erase(actions.begin() + i);
+    };
+    const auto addAction = [&actions, width]() {
+        std::shared_ptr<Action> newAction;
+        drawSelector(
+            newAction,
+            [] {
+            },
+            width.value_or(ImGui::GetContentRegionAvail().x)
+        );
+
+        if (newAction) actions.push_back(std::move(newAction));
+    };
+
+    drawCollapsingListSelector(actions, names, "action", width, deleteAction, addAction);
+}

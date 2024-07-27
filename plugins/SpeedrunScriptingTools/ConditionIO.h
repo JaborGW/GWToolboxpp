@@ -7,3 +7,4 @@ std::shared_ptr<Condition> readCondition(InputStream& stream);
 
 void drawSelector(std::shared_ptr<Condition>&, std::function<void()> drawButtons, std::optional<float> width = std::nullopt);
 void drawSelector(std::vector<std::shared_ptr<Condition>>& conditions, std::optional<float> width = std::nullopt);
+void drawCollapsingSelector(std::vector<std::shared_ptr<Condition>>& conditions, const std::vector<std::string_view>& names, std::optional<float> width = std::nullopt);

@@ -394,3 +394,21 @@ void drawSelector(std::vector<std::shared_ptr<Condition>>& conditions, std::opti
 
     drawListSelector(conditions, "condition", width, deleteCondition, addCondition);
 }
+
+void drawCollapsingSelector(std::vector<std::shared_ptr<Condition>>& conditions, const std::vector<std::string_view>& names, std::optional<float> width)
+{
+    const auto deleteCondition = [&conditions](int i) {
+        if (conditions[i])
+            conditions[i] = nullptr;
+        else
+            conditions.erase(conditions.begin() + i);
+    };
+    const auto addCondition = [&conditions, width]() {
+        std::shared_ptr<Condition> newCondition;
+        drawSelector(newCondition, []{}, width.value_or(ImGui::GetContentRegionAvail().x));
+
+        if (newCondition) conditions.push_back(std::move(newCondition));
+    };
+
+    drawCollapsingListSelector(conditions, names, "Condition", width, deleteCondition, addCondition);
+}

@@ -16,6 +16,22 @@ void drawSelector(NamedConstant<T>& constant)
     ImGui::InputText("Name", &constant.name);
 }
 
+template <typename T>
+void drawSelector(NamedConstant<T>& constant, std::optional<float> width)
+{
+    drawSelector(constant.value, width);
+    ImGui::SameLine();
+    ImGui::InputText("Name", &constant.name);
+}
+
+template <typename T>
+void drawSelector(NamedConstant<T>& constant, std::function<void()> drawButtons, std::optional<float> width)
+{
+    drawSelector(constant.value, drawButtons, width);
+    ImGui::SameLine();
+    ImGui::InputText("Name", &constant.name);
+}
+
 template<typename ConstantT>
 void drawSection(int id, std::string_view name)
 {
@@ -35,12 +51,21 @@ void drawSection(int id, std::string_view name)
 template <typename ConstantT>
 void drawCollapsingSection(int id, std::string_view name)
 {
+    const auto makeNameList = [](const std::vector<NamedConstant<ConstantT>>& constants) 
+    {
+        std::vector<std::string_view> names;
+        names.reserve(constants.size());
+        for (const auto& constant : constants)
+            names.push_back(constant.name);
+        return names;
+    };
+
     ImGui::PushID(id);
     const auto groupName = std::string{name} + "s";
     if (ImGui::TreeNodeEx(groupName.c_str(), ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
         auto& constantsManager = ConstantsManager::getInstance();
         auto& constants = constantsManager.list<ConstantT>();
-        drawListSelector(constants, name.data());
+        drawCollapsingListSelector(constants, makeNameList(constants), name.data(), 200.f);
 
         ImGui::TreePop();
     }
@@ -60,9 +85,9 @@ void drawConstantsWindow(bool& showWindow)
     drawSection<int>(id++, "Integer constant");
     drawSection<float>(id++, "Float constant");
     drawSection<ConstantsManager::Position>(id++, "Position constant");
-    drawSection<ConstantsManager::Polygon>(id++, "Polygon constant");
-    drawSection<ConstantsManager::ActionSequence>(id++, "Action sequence");
-    drawSection<ConstantsManager::ConditionSet>(id++, "Condition set");
+    //drawCollapsingSection<ConstantsManager::Polygon>(id++, "Polygon constant");
+    //drawCollapsingSection<ConstantsManager::ActionSequence>(id++, "Action sequence");
+    //drawCollapsingSection<ConstantsManager::ConditionSet>(id++, "Condition set");
 
 
     ImGui::End();
