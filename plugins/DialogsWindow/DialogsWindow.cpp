@@ -78,6 +78,17 @@ namespace {
     }
 } // namespace
 
+namespace ImGui {
+    void ShowHelp(const char* help)
+    {
+        SameLine();
+        TextDisabled("%s", "(?)");
+        if (IsItemHovered()) {
+            SetTooltip("%s", help);
+        }
+    }
+} // namespace ImGui
+
 DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 {
     static DialogsWindow instance;
@@ -201,6 +212,17 @@ void DialogsWindow::DrawSettings()
     {
         initializeCtos();
         ctosIsInitialized = true;
+    }
+    ImGui::SameLine();
+    ImGui::ShowHelp("Allows to send more dialogs, for example to allies in combat. Flags your account, use at your own risk.");
+
+    ImGui::Text("Version 1.0. For new releases, feature requests and bug reports check out");
+    ImGui::SameLine();
+
+    constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
+    ImGui::TextColored(ImColor{102, 187, 238, 255}, discordInviteLink);
+    if (ImGui::IsItemClicked()) {
+        ShellExecute(nullptr, "open", discordInviteLink, nullptr, nullptr, SW_SHOWNORMAL);
     }
 }
 
