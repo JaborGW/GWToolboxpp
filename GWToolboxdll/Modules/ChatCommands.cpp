@@ -1310,7 +1310,7 @@ void ChatCommands::Update(const float delta)
     npc_to_find.Update();
     quest_ping.Update();
 
-    const auto player = GW::Agents::GetPlayerAsAgentLiving();
+    const auto player = GW::Agents::GetControlledCharacter();
     if (Instance().agentToFollow && player)
     {
         const auto target = GW::Agents::GetAgentByID(*Instance().agentToFollow);

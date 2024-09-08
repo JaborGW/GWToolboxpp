@@ -37,6 +37,7 @@ public:
 
     static inline bool move_all = false;
     static inline bool clamp_windows_to_screen = false;
+    static inline bool disable_in_guild_hall = true;
 
 private:
     // === location stuff ===
