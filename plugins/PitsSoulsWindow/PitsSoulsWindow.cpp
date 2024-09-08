@@ -3,8 +3,12 @@
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/GameContainers/Array.h>
 #include <GWCA/GameEntities/Agent.h>
-
 #include <GWCA/Managers/AgentMgr.h>
+#include <GWCA/Utilities/Hook.h>
+#include <GWCA/Utilities/Hooker.h>
+#include <GWCA/GWCA.h>
+#include <GWCA/Managers/StoCMgr.h>
+#include <GWCA/Packets/StoC.h>
 
 DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 {
@@ -12,6 +16,8 @@ DLLAPI ToolboxPlugin* ToolboxPluginInstance()
     return &instance;
 }
 namespace {
+    GW::HookEntry InstanceLoadFile_Entry;
+
     class PitsSoul {
     public:
         enum class State { Alive, Dead, Unknown };
@@ -73,10 +79,16 @@ namespace {
         double secondsUntilRespawn = 0;
     };
 
-    std::array<PitsSoul, 3> souls = {
-        PitsSoul(GW::Vec2f{11427.f, 5079.f}, "Bottom"),
-        PitsSoul(GW::Vec2f{ 9245.f, 4898.f}, "Double"), 
-        PitsSoul(GW::Vec2f{10130.f, 6616.f}, "Reaper")
+    std::vector<PitsSoul> souls = {};
+
+    void resetSouls()
+    {
+        souls = 
+        {
+            PitsSoul(GW::Vec2f{11427.f, 5079.f}, "Bottom"), 
+            PitsSoul(GW::Vec2f{ 9245.f, 4898.f}, "Double"), 
+            PitsSoul(GW::Vec2f{10130.f, 6616.f}, "Reaper")
+        };
     };
 
     void SetNextWindowCenter(const ImGuiWindowFlags flags)
@@ -138,4 +150,32 @@ void PitsSoulsWindow::DrawSettings()
     if (ImGui::IsItemClicked()) {
         ShellExecute(nullptr, "open", discordInviteLink, nullptr, nullptr, SW_SHOWNORMAL);
     }
+}
+
+void PitsSoulsWindow::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODULE toolbox_dll)
+{
+    ToolboxUIPlugin::Initialize(ctx, fns, toolbox_dll);
+    GW::Initialize();
+
+    resetSouls();
+    GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::InstanceLoadFile*) {
+        resetSouls();
+    });
+}
+void PitsSoulsWindow::SignalTerminate()
+{
+    ToolboxUIPlugin::SignalTerminate();
+
+    GW::StoC::RemovePostCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry);
+    GW::DisableHooks();
+}
+bool PitsSoulsWindow::CanTerminate()
+{
+    return GW::HookBase::GetInHookCount() == 0;
+}
+
+void PitsSoulsWindow::Terminate()
+{
+    ToolboxPlugin::Terminate();
+    GW::Terminate();
 }

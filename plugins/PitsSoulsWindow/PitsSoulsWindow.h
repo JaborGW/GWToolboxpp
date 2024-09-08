@@ -16,5 +16,8 @@ public:
     void DrawSettings() override;
     void Draw(IDirect3DDevice9* pDevice) override;
 
-private:
+    void Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODULE toolbox_dll);
+    void SignalTerminate();
+    bool CanTerminate();
+    void Terminate();
 };
