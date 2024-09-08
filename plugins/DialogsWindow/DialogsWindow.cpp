@@ -4,8 +4,28 @@
 #include <GWCA/GameContainers/Array.h>
 
 #include <GWCA/Managers/AgentMgr.h>
+#include <GWCA/Managers/CtoSMgr.h>
 
 namespace {
+    static bool ctosIsInitialized = false;
+
+    void initializeCtos() 
+    {
+        GW::CtoS::Init();
+        GW::CtoS::EnableHooks();
+    }
+    void sendDialog(DWORD dialogId, bool useCtos)
+    {
+        #define GAME_CMSG_SEND_DIALOG (0x0039) // 57
+        if (useCtos) 
+        {
+            GW::CtoS::SendPacket(0x8, GAME_CMSG_SEND_DIALOG, dialogId);
+        }
+        else 
+        {
+            GW::Agents::SendDialog(dialogId);
+        }
+    }
     static const char* const questnames[] = {
         "UW - Chamber",
         "UW - Wastes",
@@ -68,12 +88,12 @@ void DialogsWindow::Draw(IDirect3DDevice9* pDevice)
 {
     UNREFERENCED_PARAMETER(pDevice);
     if (!GetVisiblePtr() || !*GetVisiblePtr()) return;
-    auto DialogButton = [](int x_idx, int x_qty, const char* text, const char* help, DWORD dialog) -> void {
+    auto DialogButton = [useCtos = this->useCtos](int x_idx, int x_qty, const char* text, const char* help, DWORD dialog) -> void {
         if (x_idx != 0) ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
         const auto windowContentRegionWidth = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
         float w = (windowContentRegionWidth - ImGui::GetStyle().ItemInnerSpacing.x * (x_qty - 1)) / x_qty;
         if (ImGui::Button(text, ImVec2(w, 0))) {
-            GW::Agents::SendDialog(dialog);
+            sendDialog(dialog, useCtos);
         }
         if (text != nullptr && ImGui::IsItemHovered()) {
             ImGui::SetTooltip(help);
@@ -112,11 +132,11 @@ void DialogsWindow::Draw(IDirect3DDevice9* pDevice)
                 ImGui::PopItemWidth();
                 ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
                 if (ImGui::Button("Take", ImVec2(40.0f, 0))) {
-                    GW::Agents::SendDialog(QuestAcceptDialog(IndexToQuestID(fav_index[index])));
+                    sendDialog(QuestAcceptDialog(IndexToQuestID(fav_index[index])), useCtos);
                 }
                 ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
                 if (ImGui::Button("Reward", ImVec2(60.0f, 0))) {
-                    GW::Agents::SendDialog(QuestRewardDialog(static_cast<GW::Constants::QuestID>(IndexToDialogID(fav_index[index]))));
+                    sendDialog(QuestRewardDialog(static_cast<GW::Constants::QuestID>(IndexToDialogID(fav_index[index]))), useCtos);
                 }
                 ImGui::PopID();
             }
@@ -130,7 +150,7 @@ void DialogsWindow::Draw(IDirect3DDevice9* pDevice)
             ImGui::PopItemWidth();
             ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
             if (ImGui::Button("Send##1", ImVec2(60.0f, 0))) {
-                GW::Agents::SendDialog(IndexToDialogID(dialogindex));
+                sendDialog(IndexToDialogID(dialogindex), useCtos);
             }
 
             ImGui::PushItemWidth(-60.0f - ImGui::GetStyle().ItemInnerSpacing.x);
@@ -144,7 +164,7 @@ void DialogsWindow::Draw(IDirect3DDevice9* pDevice)
                 int iid;
                 if (ParseInt(customdialogbuf, &iid) && (0 <= iid)) {
                     uint32_t id = static_cast<uint32_t>(iid);
-                    GW::Agents::SendDialog(id);
+                    sendDialog(id, useCtos);
                 }
                 else {
                     //Log::Error("Invalid dialog number '%s'", customdialogbuf);
@@ -167,6 +187,7 @@ void DialogsWindow::DrawSettings()
     }
     ImGui::PopItemWidth();
     ImGui::Text("Show:");
+    ImGui::SameLine();
     ImGui::Checkbox("Common 4", &show_common);
     ImGui::SameLine();
     ImGui::Checkbox("UW Teles", &show_uwteles);
@@ -174,6 +195,13 @@ void DialogsWindow::DrawSettings()
     ImGui::Checkbox("Favorites", &show_favorites);
     ImGui::SameLine();
     ImGui::Checkbox("Custom", &show_custom);
+
+    ImGui::Checkbox("Use CtoS dialogs", &useCtos);
+    if (useCtos && !ctosIsInitialized) 
+    {
+        initializeCtos();
+        ctosIsInitialized = true;
+    }
 }
 
 void DialogsWindow::LoadSettings(const wchar_t* folder)
@@ -194,6 +222,7 @@ void DialogsWindow::LoadSettings(const wchar_t* folder)
     show_uwteles = ini.GetBoolValue(Name(), VAR_NAME(show_uwteles), true);
     show_favorites = ini.GetBoolValue(Name(), VAR_NAME(show_favorites), true);
     show_custom = ini.GetBoolValue(Name(), VAR_NAME(show_custom), true);
+    useCtos = ini.GetBoolValue(Name(), VAR_NAME(useCtos), false);
 }
 
 void DialogsWindow::SaveSettings(const wchar_t* folder)
@@ -210,6 +239,7 @@ void DialogsWindow::SaveSettings(const wchar_t* folder)
     ini.SetBoolValue(Name(), VAR_NAME(show_uwteles), show_uwteles);
     ini.SetBoolValue(Name(), VAR_NAME(show_favorites), show_favorites);
     ini.SetBoolValue(Name(), VAR_NAME(show_custom), show_custom);
+    ini.SetBoolValue(Name(), VAR_NAME(useCtos), useCtos);
     PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 }
 
@@ -320,4 +350,24 @@ int DialogsWindow::IndexToDialogID(int index)
         default:
             return 0;
     }
+}
+
+bool DialogsWindow::CanTerminate()
+{
+    return ctosIsInitialized ? (GW::CtoS::HookCount() == 0 && ToolboxUIPlugin::CanTerminate()) : ToolboxUIPlugin::CanTerminate();
+}
+
+void DialogsWindow::SignalTerminate()
+{
+    ToolboxUIPlugin::SignalTerminate();
+    if (ctosIsInitialized)
+        GW::CtoS::DisableHooks();
+}
+
+void DialogsWindow::Terminate()
+{
+    ToolboxUIPlugin::Terminate();
+
+    if (ctosIsInitialized)
+        GW::CtoS::Exit();
 }

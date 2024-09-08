@@ -20,6 +20,10 @@ public:
     void SaveSettings(const wchar_t*) override;
     void DrawSettings() override;
 
+    bool CanTerminate() override;
+    void SignalTerminate() override;
+    void Terminate() override;
+
 private:
     inline DWORD QuestAcceptDialog(GW::Constants::QuestID quest)
     {
@@ -42,6 +46,7 @@ private:
     bool show_uwteles = true;
     bool show_favorites = true;
     bool show_custom = true;
+    bool useCtos = false;
 
     char customdialogbuf[64] = "";
 };
