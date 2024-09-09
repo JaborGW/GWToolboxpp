@@ -1,12 +1,15 @@
 #include "RawDialogs.h"
 
+#include <GWCA/GWCA.h>
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/GameContainers/Array.h>
+#include <GWCA/GameEntities/Agent.h>
+#include <GWCA/Utilities/Hooker.h>
+
 #include <GWCA/Managers/UIMgr.h>
 #include <GWCA/Managers/CtoSMgr.h>
 #include <GWCA/Managers/ChatMgr.h>
-#include <GWCA/GWCA.h>
-#include <GWCA/Utilities/Hooker.h>
+#include <GWCA/Managers/AgentMgr.h>
 
 namespace {
     GW::HookEntry OnSentChat_HookEntry;
@@ -20,6 +23,17 @@ namespace {
     {
         #define GAME_CMSG_SEND_DIALOG (0x0039) // 57
         GW::CtoS::SendPacket(0x8, GAME_CMSG_SEND_DIALOG, dialogId);
+    }
+    void openChest()
+    {
+        #define GAME_CMSG_INTERACT_GADGET (0x004F)      // 79
+        #define GAME_CMSG_SEND_SIGNPOST_DIALOG (0x0051) // 81
+
+        const auto target = GW::Agents::GetTarget();
+        if (!target || !target->GetIsGadgetType()) return;
+
+        GW::CtoS::SendPacket(0xC, GAME_CMSG_INTERACT_GADGET, target->agent_id, 0);
+        GW::CtoS::SendPacket(0x8, GAME_CMSG_SEND_SIGNPOST_DIALOG, 0x2);
     }
 
     std::string WStringToString(const std::wstring_view str)
@@ -44,6 +58,7 @@ namespace {
     {
         constexpr auto rawDialogStart = "/rawdialog ";
         constexpr auto rawDialogStartLength = std::string_view(rawDialogStart).size();
+        constexpr auto openChestStart = "/openchest";
 
         if (message_id != GW::UI::UIMessage::kSendChatMessage) return;
         const auto wmessage = static_cast<GW::UI::UIPacket::kSendChatMessage*>(wparam)->message;
@@ -52,13 +67,18 @@ namespace {
         if (channel != GW::Chat::CHANNEL_COMMAND || status->blocked) return;
         
         const auto message = WStringToString(wmessage);
-        if (!message.starts_with(rawDialogStart)) return;
-        
-        const auto dialogString = message.substr(rawDialogStartLength);
-        if (dialogString.empty()) return;
-        const auto dialogId = std::stoi(dialogString, nullptr, 0);
-        status->blocked = true;
-        sendDialog(dialogId);
+        if (message.starts_with(rawDialogStart)) {
+            const auto dialogString = message.substr(rawDialogStartLength);
+            if (dialogString.empty()) return;
+            const auto dialogId = std::stoi(dialogString, nullptr, 0);
+            status->blocked = true;
+            sendDialog(dialogId);
+        }
+        else if (message.starts_with(openChestStart))
+        {
+            status->blocked = true;
+            openChest();
+        }
     }
 } // namespace
 
@@ -72,7 +92,14 @@ void RawDialogs::DrawSettings()
 {
     ToolboxPlugin::DrawSettings();
 
-    ImGui::Text("Version 1.0. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Example usage:");
+    ImGui::Bullet();
+    ImGui::Text("Send dialog in decimal notation: /rawdialog 8416257");
+    ImGui::Bullet();
+    ImGui::Text("Send dialog in hexadecimal notation: /rawdialog 0x806501");
+    ImGui::Bullet();
+    ImGui::Text("Open chest at range: /openchest");
+    ImGui::Text("Version 1.1. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
