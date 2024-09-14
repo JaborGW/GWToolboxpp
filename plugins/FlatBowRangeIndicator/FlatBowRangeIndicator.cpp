@@ -58,7 +58,16 @@ namespace ImGui {
         SetCursorPos(pos);
         TextUnformatted(label);
     }
+}
 
+FlatBowRangeIndicator::FlatBowRangeIndicator() 
+{
+    show_closebutton = false;
+    show_title = false;
+    can_show_in_main_window = false;
+    can_collapse = false;
+    can_close = false;
+    show_menubutton = false;
 }
 
 void FlatBowRangeIndicator::Draw(IDirect3DDevice9* pDevice)
@@ -68,26 +77,27 @@ void FlatBowRangeIndicator::Draw(IDirect3DDevice9* pDevice)
 
     SetNextWindowCenter(ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(200, 100), ImGuiCond_FirstUseEver);
-
+    
     const auto result = targetInBowRange();
-    if (result != Result::NoValidTarget) {
-         if (ImGui::Begin(Name(), nullptr, GetWinFlags())){
-            auto drawList = ImGui::GetForegroundDrawList();
-            const auto pos = ImGui::GetWindowPos();
-            const auto size = ImGui::GetWindowSize();
-            constexpr auto green = ImVec4{106.f/255.f, 168.f/255.f,  79.f/255.f, 1.f};
-            constexpr auto red   = ImVec4{224.f/255.f, 102.f/255.f, 102.f/255.f, 1.f};
-            drawList->AddRectFilled(pos, {pos.x + size.x, pos.y + size.y}, ImGui::ColorConvertFloat4ToU32(result == Result::InRange ? green : red), ImDrawListFlags_AntiAliasedFill);
-        }
-        ImGui::End();
+    if (result == Result::NoValidTarget) return;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(1, 1));
+    if (ImGui::Begin(Name(), nullptr, GetWinFlags())){
+        auto drawList = ImGui::GetForegroundDrawList();
+        const auto pos = ImGui::GetWindowPos();
+        const auto size = ImGui::GetWindowSize();
+        constexpr auto green = ImVec4{106.f/255.f, 168.f/255.f,  79.f/255.f, 1.f};
+        constexpr auto red   = ImVec4{224.f/255.f, 102.f/255.f, 102.f/255.f, 1.f};
+        drawList->AddRectFilled(pos, {pos.x + size.x, pos.y + size.y}, ImGui::ColorConvertFloat4ToU32(result == Result::InRange ? green : red), ImDrawListFlags_AntiAliasedFill);
     }
+    ImGui::PopStyleVar();
 }
 
 void FlatBowRangeIndicator::DrawSettings()
 {
     ToolboxUIPlugin::DrawSettings();
 
-    ImGui::Text("Version 1.0. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.1. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
@@ -95,4 +105,15 @@ void FlatBowRangeIndicator::DrawSettings()
     if (ImGui::IsItemClicked()) {
         ShellExecute(nullptr, "open", discordInviteLink, nullptr, nullptr, SW_SHOWNORMAL);
     }
+}
+
+void FlatBowRangeIndicator::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMODULE toolbox_dll)
+{
+    ToolboxUIPlugin::Initialize(ctx, allocator_fns, toolbox_dll);
+    GW::Initialize();
+}
+void FlatBowRangeIndicator::Terminate()
+{
+    GW::Terminate();
+    ToolboxUIPlugin::Terminate();
 }
