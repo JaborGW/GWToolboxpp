@@ -6,8 +6,8 @@
 
 class DialogsWindow : public ToolboxUIPlugin {
 public:
-    DialogsWindow()
-    {
+    DialogsWindow() { 
+        can_close = true;
     }
     ~DialogsWindow() override = default;
 
@@ -42,7 +42,12 @@ private:
     int fav_count = 0;
     std::vector<int> fav_index;
 
-    bool show_common = true;
+    bool show_foundry_reward = true;
+    bool show_tower_of_strength = true;
+    bool show_demon_assassin = true;
+    bool show_four_horsemen = true;
+    bool show_dhuum = true;
+
     bool show_uwteles = true;
     bool show_favorites = true;
     bool show_custom = true;

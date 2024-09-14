@@ -110,18 +110,28 @@ void DialogsWindow::Draw(IDirect3DDevice9* pDevice)
             ImGui::SetTooltip(help);
         }
     };
+    
+    const auto commonDialogsToShow = show_foundry_reward + show_tower_of_strength + show_demon_assassin + show_four_horsemen + show_dhuum;
+    auto commonDialogCounter = 0;
+    const auto commonDialog = [&](auto label, auto description, auto id) 
+    {
+        const auto dialogsLeftAfterThis = commonDialogsToShow - commonDialogCounter;
+        DialogButton(commonDialogCounter % 2, std::max(std::min(dialogsLeftAfterThis, 2), commonDialogCounter % 2 + 1), label, description, id);
+        commonDialogCounter++;
+    };
 
     SetNextWindowCenter(ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin(Name(), GetVisiblePtr(), GetWinFlags())) {
-        if (show_common) {
-            DialogButton(0, 2, "Four Horseman", "Take quest in Planes", QuestAcceptDialog(GW::Constants::QuestID::UW_Planes));
-            DialogButton(1, 2, "Demon Assassin", "Take quest in Mountains", QuestAcceptDialog(GW::Constants::QuestID::UW_Mnt));
-            DialogButton(0, 2, "Tower of Strength", "Take quest", QuestAcceptDialog(GW::Constants::QuestID::Fow_Tos));
-            DialogButton(1, 2, "Foundry Reward", "Accept reward", QuestRewardDialog(GW::Constants::QuestID::Doa_FoundryBreakout));
-            DialogButton(0, 1, "Dhuum", "Take quest", 8677633);
-            ImGui::Separator();
-        }
+
+    if (ImGui::Begin(Name(), show_closebutton ? GetVisiblePtr() : nullptr, GetWinFlags())) {
+
+        if (show_four_horsemen) commonDialog("Four Horseman", "Take quest in Planes", QuestAcceptDialog(GW::Constants::QuestID::UW_Planes));
+        if (show_demon_assassin) commonDialog("Demon Assassin", "Take quest in Mountains", QuestAcceptDialog(GW::Constants::QuestID::UW_Mnt));
+        if (show_tower_of_strength) commonDialog("Tower of Strength", "Take quest", QuestAcceptDialog(GW::Constants::QuestID::Fow_Tos));
+        if (show_foundry_reward) commonDialog("Foundry Reward", "Accept reward", QuestRewardDialog(GW::Constants::QuestID::Doa_FoundryBreakout));
+        if (show_dhuum) commonDialog("Dhuum", "Take quest", 8677633);
+        if (commonDialogsToShow > 0) ImGui::Separator();
+        
         if (show_uwteles) {
             DialogButton(0, 4, "Lab", "Teleport Lab", GW::Constants::DialogID::UwTeleLab);
             DialogButton(1, 4, "Vale", "Teleport Vale", GW::Constants::DialogID::UwTeleVale);
@@ -196,10 +206,21 @@ void DialogsWindow::DrawSettings()
         size_t count = static_cast<size_t>(fav_count);
         fav_index.resize(count, 0);
     }
+
     ImGui::PopItemWidth();
-    ImGui::Text("Show:");
+    ImGui::Text("Show common dialog:");
     ImGui::SameLine();
-    ImGui::Checkbox("Common 4", &show_common);
+    ImGui::Checkbox("Four Horseman", &show_four_horsemen);
+    ImGui::SameLine();
+    ImGui::Checkbox("Demon Assassin", &show_demon_assassin);
+    ImGui::SameLine();
+    ImGui::Checkbox("Tower of Strength", &show_tower_of_strength);
+    ImGui::SameLine();
+    ImGui::Checkbox("Foundry Reward", &show_foundry_reward);
+    ImGui::SameLine();
+    ImGui::Checkbox("Dhuum", &show_dhuum);
+    
+    ImGui::Text("Show:");
     ImGui::SameLine();
     ImGui::Checkbox("UW Teles", &show_uwteles);
     ImGui::SameLine();
@@ -216,7 +237,7 @@ void DialogsWindow::DrawSettings()
     ImGui::SameLine();
     ImGui::ShowHelp("Allows to send more dialogs, for example to allies in combat. Flags your account, use at your own risk.");
 
-    ImGui::Text("Version 1.0. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.1. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
@@ -240,7 +261,11 @@ void DialogsWindow::LoadSettings(const wchar_t* folder)
         snprintf(key, 32, "Quest%zu", i);
         fav_index[i] = ini.GetLongValue(Name(), key, 0);
     }
-    show_common = ini.GetBoolValue(Name(), VAR_NAME(show_common), true);
+    show_four_horsemen     = ini.GetBoolValue(Name(), VAR_NAME(show_four_horsemen), true);
+    show_foundry_reward    = ini.GetBoolValue(Name(), VAR_NAME(show_foundry_reward), true);
+    show_tower_of_strength = ini.GetBoolValue(Name(), VAR_NAME(show_tower_of_strength), true);
+    show_demon_assassin    = ini.GetBoolValue(Name(), VAR_NAME(show_demon_assassin), true);
+    show_dhuum             = ini.GetBoolValue(Name(), VAR_NAME(show_dhuum), true);
     show_uwteles = ini.GetBoolValue(Name(), VAR_NAME(show_uwteles), true);
     show_favorites = ini.GetBoolValue(Name(), VAR_NAME(show_favorites), true);
     show_custom = ini.GetBoolValue(Name(), VAR_NAME(show_custom), true);
@@ -257,7 +282,11 @@ void DialogsWindow::SaveSettings(const wchar_t* folder)
         snprintf(key, 32, "Quest%zu", i);
         ini.SetLongValue(Name(), key, fav_index[i]);
     }
-    ini.SetBoolValue(Name(), VAR_NAME(show_common), show_common);
+    ini.SetBoolValue(Name(), VAR_NAME(show_four_horsemen), show_four_horsemen);
+    ini.SetBoolValue(Name(), VAR_NAME(show_foundry_reward), show_foundry_reward);
+    ini.SetBoolValue(Name(), VAR_NAME(show_tower_of_strength), show_tower_of_strength);
+    ini.SetBoolValue(Name(), VAR_NAME(show_demon_assassin), show_demon_assassin);
+    ini.SetBoolValue(Name(), VAR_NAME(show_dhuum), show_dhuum);
     ini.SetBoolValue(Name(), VAR_NAME(show_uwteles), show_uwteles);
     ini.SetBoolValue(Name(), VAR_NAME(show_favorites), show_favorites);
     ini.SetBoolValue(Name(), VAR_NAME(show_custom), show_custom);
