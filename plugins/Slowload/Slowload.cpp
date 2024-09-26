@@ -25,9 +25,9 @@ DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 void logMessage(std::string_view message)
 {
     const auto wMessage = std::wstring{message.begin(), message.end()};
-    const size_t len = 30 + wcslen(wMessage.c_str());
+    const size_t len = 42 + wcslen(wMessage.c_str());
     auto to_send = new wchar_t[len];
-    swprintf(to_send, len - 1, L"<a=1>%s</a><c=#%6X>: %s</c>", L"SST", 0xFFFFFF, wMessage.c_str());
+    swprintf(to_send, len - 1, L"<a=1>%s</a><c=#%6X>: %s</c>", L"Slowload plugin", 0xFFFFFF, wMessage.c_str());
     GW::GameThread::Enqueue([to_send] {
         GW::Chat::WriteChat(GW::Chat::Channel::CHANNEL_GWCA2, to_send, nullptr);
         delete[] to_send;
@@ -169,12 +169,12 @@ bool Slowload::WndProc(const UINT Message, const WPARAM wParam, LPARAM lparam)
                     case Status::Inactive:
                         if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading) return false;
                         status = Status::WaitingForLoadScreen;
-                        logMessage("Slowload activated");
+                        logMessage("Activated");
                         break;
                     case Status::WaitingForLoadScreen:
                         if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading) return false;
                         status = Status::Inactive;
-                        logMessage("Slowload deactivated");
+                        logMessage("Deactivated");
                         break;
                     case Status::WaitingInLoadScreen:
                         stopSlowLoad();
