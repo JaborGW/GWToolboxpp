@@ -162,7 +162,7 @@ bool Slowload::WndProc(const UINT Message, const WPARAM wParam, LPARAM lparam)
                 modifier |= ModKey_Alt;
             }
 
-            const auto triggered = shortcutKey && modifier == shortcutMod && keyData == shortcutKey && (slowloading_character_name.empty() || slowloading_character_name == GW::GetCharContext()->player_name);
+            const auto triggered = shortcutKey && modifier == shortcutMod && keyData == shortcutKey;
             if (triggered)
             {
                 switch (status) {
@@ -216,8 +216,6 @@ void Slowload::LoadSettings(const wchar_t* folder)
     shortcutKey = ini.GetLongValue(Name(), VAR_NAME(shortcutKey), shortcutKey);
     shortcutMod = ini.GetLongValue(Name(), VAR_NAME(shortcutMod), shortcutMod);
 
-    slowloading_character_name = to_wstring(ini.GetValue(Name(), VAR_NAME(slowloading_character_name), ""));
-
     ModKeyName(hotkeyDescription, _countof(hotkeyDescription), shortcutMod, shortcutKey);
 }
 
@@ -226,7 +224,6 @@ void Slowload::SaveSettings(const wchar_t* folder)
     ToolboxPlugin::SaveSettings(folder);
     ini.SetLongValue(Name(), VAR_NAME(shortcutKey), shortcutKey);
     ini.SetLongValue(Name(), VAR_NAME(shortcutMod), shortcutMod);
-    ini.SetValue(Name(), VAR_NAME(slowloading_character_name), to_string(slowloading_character_name).c_str());
 
     PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 }
@@ -250,17 +247,6 @@ void Slowload::DrawSettings()
         }
     }
 
-    if (slowloading_character_name.empty()) {
-        if (ImGui::Button("Restrict slowloading to current character")) slowloading_character_name = GW::GetCharContext()->player_name;
-    }
-    else {
-        ImGui::Text("Slowloading restricted to: %ls", &slowloading_character_name[0]);
-        ImGui::SameLine();
-        if (ImGui::Button("Clear###1")) {
-            slowloading_character_name.clear();
-        }
-    }
-
     ImGui::Text("Version 1.0. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
@@ -277,7 +263,7 @@ void Slowload::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODULE toolbox_
     GW::Initialize();
 
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::InstanceLoadFile>(&instanceLoadEntry, [this](GW::HookStatus* hookStatus, GW::Packet::StoC::InstanceLoadFile* packet) {
-        if (shortcutKey && status == Status::WaitingForLoadScreen && (slowloading_character_name.empty() || slowloading_character_name == GW::GetCharContext()->player_name))
+        if (shortcutKey && status == Status::WaitingForLoadScreen)
         {
             status = Status::WaitingInLoadScreen;
             this->packet = *packet;

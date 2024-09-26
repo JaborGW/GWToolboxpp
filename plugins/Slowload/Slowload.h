@@ -41,6 +41,5 @@ private:
     GW::HookEntry instanceLoadEntry;
     GW::Packet::StoC::InstanceLoadFile packet;
 
-    std::wstring slowloading_character_name = L"";
     char hotkeyDescription[64]{};
 };
