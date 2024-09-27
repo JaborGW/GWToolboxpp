@@ -270,6 +270,11 @@ void DialogsWindow::LoadSettings(const wchar_t* folder)
     show_favorites = ini.GetBoolValue(Name(), VAR_NAME(show_favorites), true);
     show_custom = ini.GetBoolValue(Name(), VAR_NAME(show_custom), true);
     useCtos = ini.GetBoolValue(Name(), VAR_NAME(useCtos), false);
+
+    if (useCtos) {
+        initializeCtos();
+        ctosIsInitialized = true;
+    }
 }
 
 void DialogsWindow::SaveSettings(const wchar_t* folder)
