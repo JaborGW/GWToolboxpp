@@ -21,13 +21,13 @@ namespace {
     }
     void sendDialog(DWORD dialogId)
     {
-        #define GAME_CMSG_SEND_DIALOG (0x0039) // 57
+        #define GAME_CMSG_SEND_DIALOG (0x003A)
         GW::CtoS::SendPacket(0x8, GAME_CMSG_SEND_DIALOG, dialogId);
     }
     void openChest()
     {
-        #define GAME_CMSG_INTERACT_GADGET (0x004F)      // 79
-        #define GAME_CMSG_SEND_SIGNPOST_DIALOG (0x0051) // 81
+        #define GAME_CMSG_INTERACT_GADGET (0x003E)
+        #define GAME_CMSG_SEND_SIGNPOST_DIALOG (0x0052)
 
         const auto target = GW::Agents::GetTarget();
         if (!target || !target->GetIsGadgetType()) return;
@@ -99,7 +99,7 @@ void RawDialogs::DrawSettings()
     ImGui::Text("Send dialog in hexadecimal notation: /rawdialog 0x806501");
     ImGui::Bullet();
     ImGui::Text("Open chest at range: /openchest");
-    ImGui::Text("Version 1.1. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.1.1 For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
