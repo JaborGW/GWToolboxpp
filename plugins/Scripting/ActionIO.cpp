@@ -6,7 +6,7 @@
 namespace {
     ActionPtr makeAction(ActionType type)
     {
-        static_assert((int)ActionType::Count == 37);
+        static_assert((int)ActionType::Count == 38);
         switch (type) {
             case ActionType::MoveTo:
                 return std::make_shared<MoveToAction>();
@@ -80,6 +80,8 @@ namespace {
                 return std::make_shared<IncrementVariableAction>();
             case ActionType::AbandonQuest:
                 return std::make_shared<AbandonQuestAction>();
+            case ActionType::PrintDbgPathingInfo:
+                return std::make_shared<PrintDbgPathingInfoAction>();
             default:
                 return nullptr;
         }
@@ -88,7 +90,7 @@ namespace {
 
 std::string_view toString(ActionType type)
 {
-    static_assert((int)ActionType::Count == 37);
+    static_assert((int)ActionType::Count == 38);
     switch (type) {
         case ActionType::MoveTo:
             return "Position";
@@ -162,6 +164,8 @@ std::string_view toString(ActionType type)
             return "Increment";
         case ActionType::AbandonQuest:
             return "Abandon quest";
+        case ActionType::PrintDbgPathingInfo:
+            return "Print Pathing Info";
         default:
             return "Unknown";
     }
@@ -169,7 +173,7 @@ std::string_view toString(ActionType type)
 
 ActionPtr readAction(InputStream& stream)
 {
-    static_assert((int)ActionType::Count == 37);
+    static_assert((int)ActionType::Count == 38);
     int type;
 
     stream >> type;
@@ -246,6 +250,8 @@ ActionPtr readAction(InputStream& stream)
             return std::make_shared<IncrementVariableAction>(stream);
         case ActionType::AbandonQuest:
             return std::make_shared<AbandonQuestAction>(stream);
+        case ActionType::PrintDbgPathingInfo:
+            return std::make_shared<PrintDbgPathingInfoAction>(stream);
         default:
             return nullptr;
     }
@@ -289,7 +295,7 @@ ActionPtr drawActionSelector(float width)
         drawSubMenu("Chat", std::array{ActionType::SendChat, ActionType::PingTarget, ActionType::PingHardMode});
         drawSubMenu("Control flow", std::array{ActionType::Wait, ActionType::WaitUntil, ActionType::StopScript, ActionType::EnterCriticalSection, ActionType::LeaveCriticalSection});
         drawSubMenu("Variables", std::array{ActionType::SetVariable, ActionType::IncrementVariable, ActionType::DecrementVariable});
-        drawSubMenu("Other", std::array{ActionType::Cancel, ActionType::LogOut, ActionType::GWKey, ActionType::AbandonQuest});
+        drawSubMenu("Other", std::array{ActionType::Cancel, ActionType::LogOut, ActionType::GWKey, ActionType::AbandonQuest, ActionType::PrintDbgPathingInfo});
         drawActionSelector(ActionType::Conditioned);
 
         ImGui::EndPopup();

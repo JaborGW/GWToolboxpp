@@ -543,3 +543,18 @@ public:
 private:
     std::string name = "";
 };
+
+class PrintDbgPathingInfoAction : public Action {
+public:
+    PrintDbgPathingInfoAction() = default;
+    PrintDbgPathingInfoAction(InputStream&);
+    ActionType type() const final { return ActionType::PrintDbgPathingInfo; }
+    void initialAction() final;
+    void serialize(OutputStream&) const final;
+    void drawSettings() final;
+    ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
+
+private:
+    int count = 9;
+    float range = 10'000.f;
+};

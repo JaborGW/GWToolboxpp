@@ -2065,3 +2065,151 @@ void AbandonQuestAction::drawSettings()
 
     ImGui::PopID();
 }
+
+/// ------------- PrintDbgPathingInfoAction -------------
+#include <GWCA/GameEntities/Pathing.h>
+#include <GWCA/Utilities/Scanner.h>
+namespace {
+    struct PathPoint {
+        GW::GamePos pos = {};
+        const GW::PathingTrapezoid* t = nullptr;
+    };
+    typedef void(__cdecl* FindPath_pt)(PathPoint* start, PathPoint* goal, float range, uint32_t maxCount, uint32_t* count, PathPoint* pathArray);
+    static FindPath_pt FindPath_Func = nullptr;
+    static GW::PathingMapArray* path_map = nullptr;
+
+    bool pointOnTrapezoid(const GW::GamePos& pos, const GW::PathingTrapezoid& trap)
+    {
+        const auto goodX = pos.x < trap.XBR && pos.x < trap.XTR && pos.x > trap.XTL && pos.x > trap.XBL;
+        const auto goodY = pos.y < std::max(trap.YB, trap.YT) && pos.y > std::min(trap.YB, trap.YT);
+        return goodX && goodY;
+    }
+
+    const GW::PathingTrapezoid* findTrapezoid(const GW::GamePos& pos)
+    {
+        if (!path_map) return nullptr;
+        for (const auto& map : *path_map) {
+            for (uint32_t i = 0u; i < map.trapezoid_count; ++i) {
+                if (pointOnTrapezoid(pos, map.trapezoids[i])) {
+                    return &map.trapezoids[i];
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    enum class PathingResult 
+    {
+        CanPath,
+        CannotPath,
+        Unknown
+    };
+
+    GW::GamePos getRandomPosition(GW::GamePos center, float distance) 
+    {
+        constexpr auto pi = 3.14159265359;
+        const auto phi = (rand() % 10'000) * (2 * pi / 10'000);
+        center.y += (float)(distance * std::sin(phi));
+        center.x += (float)(distance * std::cos(phi));
+        return center;
+    }
+    PathPoint findValidPositionNear(GW::GamePos pos) 
+    {
+        int attempts = 0;
+        float offsetDistance = 0.f;
+        PathPoint point{};
+        while (!point.t && attempts < 20) {
+            const auto offsetPos = getRandomPosition(pos, offsetDistance);
+            point = PathPoint{offsetPos, findTrapezoid(offsetPos)};
+            offsetDistance += 0.5f;
+        }
+        return point;
+    }
+    PathingResult canPathToTarget(GW::GamePos playerPos, GW::GamePos targetPos, uint32_t count, float range)
+    {
+        auto start = findValidPositionNear(playerPos);
+        auto end = PathPoint{targetPos, findTrapezoid(targetPos)};
+
+        if (!start.t || !end.t) return PathingResult::Unknown;
+
+        std::vector<PathPoint> pathArray(count, PathPoint{});
+        uint32_t cnt = pathArray.size();
+        FindPath_Func(&start, &end, range, cnt, &cnt, &pathArray[0]);
+        return (GW::GetSquareDistance(pathArray[cnt - 1].pos, end.pos) < 200 || cnt > 1) ? PathingResult::CanPath : PathingResult::CannotPath;
+    }
+
+} // namespace
+PrintDbgPathingInfoAction::PrintDbgPathingInfoAction(InputStream& stream)
+{
+    stream >> count >> range;
+}
+void PrintDbgPathingInfoAction::serialize(OutputStream& stream) const
+{
+    Action::serialize(stream);
+
+    stream << count << range;
+}
+void PrintDbgPathingInfoAction::initialAction()
+{
+    Action::initialAction();
+
+    if (!FindPath_Func) {
+        FindPath_Func = (FindPath_pt)GW::Scanner::Find("\x83\xec\x20\x53\x8b\x5d\x1c\x56\x57\xe8", "xxxxxxxxxx", -0x3);
+    }
+    if (!FindPath_Func) {
+        logMessage("FUNCTION NOT FOUND");
+        return;
+    }
+    
+    if (!path_map && GW::Map::GetIsMapLoaded()) 
+    {
+        path_map = GW::Map::GetPathingMap();
+    }
+    if (!path_map) 
+    {
+        logMessage("Pathing map not found");
+        return;
+    }
+    const auto player = GW::Agents::GetControlledCharacter();
+    const auto target = GW::Agents::GetTargetAsAgentLiving();
+    if (!target || !player) return;
+
+    int sucessful = 0;
+    int results = 0;
+    auto handleResult = [&](PathingResult res) {
+        switch (res) 
+        {
+            case PathingResult::CanPath:
+                ++sucessful;
+                ++results;
+                break;
+            case PathingResult::CannotPath:
+                ++results;
+                break;
+            case PathingResult::Unknown:
+                break;
+        }
+    };
+    for (int i = 0; i < 50; ++i) 
+    {
+        const auto offsetPos = getRandomPosition(target->pos, 100);
+        handleResult(canPathToTarget(player->pos, offsetPos, count, range));
+    }
+
+    logMessage("Can path to: " + std::to_string(100.f * sucessful / results) + "%");
+}
+
+void PrintDbgPathingInfoAction::drawSettings()
+{
+    ImGui::PushID(drawId());
+
+    ImGui::Text("Print debug pathing info");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100.f);
+    ImGui::InputFloat("Range", &range, 0.0f, 0.0f);
+    ImGui::SameLine();
+    ImGui::InputInt("Count", &count, 0);
+    ImGui::PopItemWidth();
+
+    ImGui::PopID();
+}
