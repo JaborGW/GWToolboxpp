@@ -2076,18 +2076,45 @@ namespace {
     };
     typedef void(__cdecl* FindPath_pt)(PathPoint* start, PathPoint* goal, float range, uint32_t maxCount, uint32_t* count, PathPoint* pathArray);
     static FindPath_pt FindPath_Func = nullptr;
-    static GW::PathingMapArray* path_map = nullptr;
+    constexpr uint32_t pathingCount = 9;
+    constexpr float pathingRange = 10'000.f;
 
-    bool pointOnTrapezoid(const GW::GamePos& pos, const GW::PathingTrapezoid& trap)
+    float Cross(const GW::Vec2f& lhs, const GW::Vec2f& rhs)
     {
-        const auto goodX = pos.x < trap.XBR && pos.x < trap.XTR && pos.x > trap.XTL && pos.x > trap.XBL;
-        const auto goodY = pos.y < std::max(trap.YB, trap.YT) && pos.y > std::min(trap.YB, trap.YT);
-        return goodX && goodY;
+        return (lhs.x * rhs.y) - (lhs.y * rhs.x);
     }
 
-    const GW::PathingTrapezoid* findTrapezoid(const GW::GamePos& pos)
+    bool pointOnTrapezoid(const GW::GamePos& p, const GW::PathingTrapezoid& trap)
     {
-        if (!path_map) return nullptr;
+        //  a----d
+        //   \    \
+        //    b____c
+        const auto a = GW::Vec2f{trap.XTL, trap.YT};
+        const auto b = GW::Vec2f{trap.XBL, trap.YB};
+        const auto c = GW::Vec2f{trap.XBR, trap.YB};
+        const auto d = GW::Vec2f{trap.XTR, trap.YT};
+
+        // See GWCA pathing.cpp:IsOnPathingTrapezoid
+        constexpr float tolerance = 2.0f;
+        if (a.y < p.y || b.y > p.y) return false;
+        if (b.x > p.x && a.x > p.x) return false;
+        if (c.x < p.x && d.x < p.x) return false;
+        const auto ab = b - a, cd = d - c, pa = a - p, pc = c - p;
+        if (Cross(ab, pa) > tolerance) return false;
+        if (Cross(cd, pc) > tolerance) return false;
+        return true;
+    }
+
+    // Check if c is approximately on line AB
+    bool areApproximatelyColinear(GW::Vec2f a, GW::Vec2f b, GW::Vec2f c) {
+        const auto doubleTriangleArea = std::abs(a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.x - b.x));
+        const auto distance = GW::GetDistance(a, b);
+        const auto projectionDistance = doubleTriangleArea / distance; // Distance of C to line AB
+        return projectionDistance < 0.01 * distance;
+    }
+
+    const GW::PathingTrapezoid* findTrapezoid(const GW::GamePos& pos, const GW::PathingMapArray* path_map)
+    {
         for (const auto& map : *path_map) {
             for (uint32_t i = 0u; i < map.trapezoid_count; ++i) {
                 if (pointOnTrapezoid(pos, map.trapezoids[i])) {
@@ -2098,56 +2125,81 @@ namespace {
         return nullptr;
     }
 
-    enum class PathingResult 
+    enum class PathingResult { CanPath, DoesntReachTarget, CannotPath, Unknown };
+    /// @param direction: int 0..15, picks direction to offset to
+    GW::GamePos getOffsetPosition(GW::GamePos center, float distance, uint8_t direction)
     {
-        CanPath,
-        CannotPath,
-        Unknown
-    };
-
-    GW::GamePos getRandomPosition(GW::GamePos center, float distance) 
-    {
-        constexpr auto pi = 3.14159265359;
-        const auto phi = (rand() % 10'000) * (2 * pi / 10'000);
-        center.y += (float)(distance * std::sin(phi));
-        center.x += (float)(distance * std::cos(phi));
+        constexpr auto pi = 3.14159265359f;
+        const auto phi = direction * pi / 16;
+        center.y += distance * std::sin(phi);
+        center.x += distance * std::cos(phi);
         return center;
     }
-    PathPoint findValidPositionNear(GW::GamePos pos) 
+    PathingResult canPathToTarget(const PathPoint& playerPathPoint, const GW::GamePos& targetPos, const GW::PathingMapArray* path_map)
     {
-        int attempts = 0;
-        float offsetDistance = 0.f;
-        PathPoint point{};
-        while (!point.t && attempts < 20) {
-            const auto offsetPos = getRandomPosition(pos, offsetDistance);
-            point = PathPoint{offsetPos, findTrapezoid(offsetPos)};
-            offsetDistance += 0.5f;
-        }
-        return point;
+        auto start = playerPathPoint;
+        auto end = PathPoint{targetPos, findTrapezoid(targetPos, path_map)};
+        if (!end.t) return PathingResult::Unknown;
+
+        std::array<PathPoint, pathingCount> pathArray;
+        uint32_t count = pathArray.size();
+        FindPath_Func(&start, &end, pathingRange, count, &count, &pathArray[0]);
+        
+        if (GW::GetSquareDistance(pathArray[count - 1].pos, end.pos) < 10) //Check for count > 1 here?
+            return PathingResult::CanPath;
+        if (areApproximatelyColinear(playerPathPoint.pos, targetPos, pathArray[count - 1].pos)) 
+            return PathingResult::CannotPath;
+        return PathingResult::DoesntReachTarget;
     }
-    PathingResult canPathToTarget(GW::GamePos playerPos, GW::GamePos targetPos, uint32_t count, float range)
+    PathingResult sohResult(const GW::GamePos& sohPoint, const GW::PathingMapArray* path_map)
     {
-        auto start = findValidPositionNear(playerPos);
-        auto end = PathPoint{targetPos, findTrapezoid(targetPos)};
+        const auto player = GW::Agents::GetControlledCharacter();
+        if (!player || !path_map) return PathingResult::Unknown;
+        const auto playerPathPoint = PathPoint{player->pos, findTrapezoid(player->pos, path_map)};
+        return canPathToTarget(playerPathPoint, sohPoint, path_map);
+    }
+    std::optional<float> dcSuccessRate(const GW::AgentLiving* target, const GW::PathingMapArray* path_map)
+    {
+        const auto player = GW::Agents::GetControlledCharacter();
+        if (!target || !player) return std::nullopt;
 
-        if (!start.t || !end.t) return PathingResult::Unknown;
+        int sucessful = 0;
+        int results = 0;
+        auto handleResult = [&](PathingResult res) {
+            switch (res) {
+                case PathingResult::CanPath:
+                    ++sucessful;
+                    ++results;
+                    break;
+                case PathingResult::CannotPath:
+                    ++results;
+                    break;
+                case PathingResult::Unknown:
+                    break;
+            }
+        };
+        constexpr float dcOffset = 100.f;
 
-        std::vector<PathPoint> pathArray(count, PathPoint{});
-        uint32_t cnt = pathArray.size();
-        FindPath_Func(&start, &end, range, cnt, &cnt, &pathArray[0]);
-        return (GW::GetSquareDistance(pathArray[cnt - 1].pos, end.pos) < 200 || cnt > 1) ? PathingResult::CanPath : PathingResult::CannotPath;
+        const auto playerPathPoint = PathPoint{player->pos, findTrapezoid(player->pos, path_map)};
+        for (uint8_t direction = 0u; direction < 16; ++direction) {
+            const auto targetPos = getOffsetPosition(target->pos, dcOffset, direction);
+            handleResult(canPathToTarget(playerPathPoint, targetPos, path_map));
+        }
+
+        if (results == 0) return std::nullopt;
+        return (float)sucessful / results;
     }
 
 } // namespace
 PrintDbgPathingInfoAction::PrintDbgPathingInfoAction(InputStream& stream)
 {
-    stream >> count >> range;
+    stream >> sohLocation.x >> sohLocation.y >> sohLocation.zplane;
 }
 void PrintDbgPathingInfoAction::serialize(OutputStream& stream) const
 {
     Action::serialize(stream);
 
-    stream << count << range;
+    stream << sohLocation.x << sohLocation.y << sohLocation.zplane;
 }
 void PrintDbgPathingInfoAction::initialAction()
 {
@@ -2156,47 +2208,7 @@ void PrintDbgPathingInfoAction::initialAction()
     if (!FindPath_Func) {
         FindPath_Func = (FindPath_pt)GW::Scanner::Find("\x83\xec\x20\x53\x8b\x5d\x1c\x56\x57\xe8", "xxxxxxxxxx", -0x3);
     }
-    if (!FindPath_Func) {
-        logMessage("FUNCTION NOT FOUND");
-        return;
-    }
-    
-    if (!path_map && GW::Map::GetIsMapLoaded()) 
-    {
-        path_map = GW::Map::GetPathingMap();
-    }
-    if (!path_map) 
-    {
-        logMessage("Pathing map not found");
-        return;
-    }
-    const auto player = GW::Agents::GetControlledCharacter();
-    const auto target = GW::Agents::GetTargetAsAgentLiving();
-    if (!target || !player) return;
-
-    int sucessful = 0;
-    int results = 0;
-    auto handleResult = [&](PathingResult res) {
-        switch (res) 
-        {
-            case PathingResult::CanPath:
-                ++sucessful;
-                ++results;
-                break;
-            case PathingResult::CannotPath:
-                ++results;
-                break;
-            case PathingResult::Unknown:
-                break;
-        }
-    };
-    for (int i = 0; i < 50; ++i) 
-    {
-        const auto offsetPos = getRandomPosition(target->pos, 100);
-        handleResult(canPathToTarget(player->pos, offsetPos, count, range));
-    }
-
-    logMessage("Can path to: " + std::to_string(100.f * sucessful / results) + "%");
+    sohResult(sohLocation, GW::Map::GetPathingMap());
 }
 
 void PrintDbgPathingInfoAction::drawSettings()
@@ -2206,9 +2218,11 @@ void PrintDbgPathingInfoAction::drawSettings()
     ImGui::Text("Print debug pathing info");
     ImGui::SameLine();
     ImGui::PushItemWidth(100.f);
-    ImGui::InputFloat("Range", &range, 0.0f, 0.0f);
+    ImGui::InputFloat("x", &sohLocation.x, 0.0f, 0.0f);
     ImGui::SameLine();
-    ImGui::InputInt("Count", &count, 0);
+    ImGui::InputFloat("y", &sohLocation.y, 0.0f, 0.0f);
+    ImGui::SameLine();
+    ImGui::InputInt("z", reinterpret_cast<int*>(&sohLocation.zplane), 0);
     ImGui::PopItemWidth();
 
     ImGui::PopID();

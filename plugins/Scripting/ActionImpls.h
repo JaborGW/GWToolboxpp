@@ -555,6 +555,5 @@ public:
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
 
 private:
-    int count = 9;
-    float range = 10'000.f;
+    GW::GamePos sohLocation;
 };
