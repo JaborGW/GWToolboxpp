@@ -10,23 +10,35 @@
 #include <GWCA/Managers/CtoSMgr.h>
 #include <GWCA/Managers/ChatMgr.h>
 #include <GWCA/Managers/AgentMgr.h>
+#include <GWCA/Utilities/Scanner.h>
 
 namespace {
     GW::HookEntry OnSentChat_HookEntry;
 
+    typedef void (*SendDialog_pt)(uint32_t dialog_id);
+    SendDialog_pt SendAgentDialog_Func = 0;
+
+    static bool ctosIsInitialized = false;
+
     void initializeCtos() 
     {
+        ctosIsInitialized = true;
         GW::CtoS::Init();
         GW::CtoS::EnableHooks();
     }
     void sendDialog(DWORD dialogId)
     {
-        #define GAME_CMSG_SEND_DIALOG (0x003A)
-        GW::CtoS::SendPacket(0x8, GAME_CMSG_SEND_DIALOG, dialogId);
+        if (SendAgentDialog_Func) 
+            SendAgentDialog_Func(dialogId);
+        else if (ctosIsInitialized)
+        {
+            #define GAME_CMSG_SEND_DIALOG (0x003A)
+            GW::CtoS::SendPacket(0x8, GAME_CMSG_SEND_DIALOG, dialogId);
+        }
     }
     void openChest()
     {
-        #define GAME_CMSG_INTERACT_GADGET (0x003E)
+        #define GAME_CMSG_INTERACT_GADGET (0x0050)
         #define GAME_CMSG_SEND_SIGNPOST_DIALOG (0x0052)
 
         const auto target = GW::Agents::GetTarget();
@@ -76,16 +88,46 @@ namespace {
         }
         else if (message.starts_with(openChestStart))
         {
-            status->blocked = true;
-            openChest();
+            const auto plugin = static_cast<RawDialogs*>(ToolboxPluginInstance());
+            if (plugin && plugin->useCtos) {
+                status->blocked = true;
+                openChest();
+            }
         }
     }
 } // namespace
+
+namespace ImGui {
+    void ShowHelp(const char* help)
+    {
+        SameLine();
+        TextDisabled("%s", "(?)");
+        if (IsItemHovered()) {
+            SetTooltip("%s", help);
+        }
+    }
+} // namespace ImGui
 
 DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 {
     static RawDialogs instance;
     return &instance;
+}
+
+void RawDialogs::LoadSettings(const wchar_t* folder)
+{
+    ToolboxPlugin::LoadSettings(folder);
+    ini.LoadFile(GetSettingFile(folder).c_str());
+    useCtos = ini.GetBoolValue(Name(), VAR_NAME(useCtos), false);
+
+    if (useCtos) initializeCtos();
+}
+
+void RawDialogs::SaveSettings(const wchar_t* folder)
+{
+    ToolboxPlugin::SaveSettings(folder);
+    ini.SetBoolValue(Name(), VAR_NAME(useCtos), useCtos);
+    PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 }
 
 void RawDialogs::DrawSettings()
@@ -99,7 +141,13 @@ void RawDialogs::DrawSettings()
     ImGui::Text("Send dialog in hexadecimal notation: /rawdialog 0x806501");
     ImGui::Bullet();
     ImGui::Text("Open chest at range: /openchest");
-    ImGui::Text("Version 1.1.1 For new releases, feature requests and bug reports check out");
+    
+    ImGui::Checkbox("Enable /openchest", &useCtos);
+    if (useCtos && !ctosIsInitialized) initializeCtos();
+    ImGui::SameLine();
+    ImGui::ShowHelp("Flags your account, use at your own risk.");
+    
+    ImGui::Text("Version 1.1.2. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
@@ -113,8 +161,13 @@ void RawDialogs::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMOD
 {
     ToolboxPlugin::Initialize(ctx, allocator_fns, toolbox_dll);
     GW::Initialize();
-    GW::CtoS::Init();
     GW::UI::RegisterUIMessageCallback(&OnSentChat_HookEntry, GW::UI::UIMessage::kSendChatMessage, OnSendChat);
+    
+    const auto address = GW::Scanner::Find("\x89\x4b\x24\x8b\x4b\x28\x83\xe9\x00", "xxxxxxxxx");
+    if (GW::Scanner::IsValidPtr(address, GW::ScannerSection::Section_TEXT)) 
+    {
+        SendAgentDialog_Func = (SendDialog_pt)GW::Scanner::FunctionFromNearCall(address + 0x15);
+    }
 }
 
 bool RawDialogs::CanTerminate()
