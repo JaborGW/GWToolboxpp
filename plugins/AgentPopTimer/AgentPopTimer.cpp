@@ -209,28 +209,14 @@ namespace
         }
 
         // Value
-        if (showValue && !showIcon) 
-        {
-            const auto centiseconds = (int)std::round(100 * (1.f-circlePortion));
-            const auto text = std::to_string(centiseconds / 10) + "." + std::to_string(centiseconds % 10);
-            ImGui::PushStyleColor(ImGuiCol_Text, color);
-            ImGui::PushFont(FontLoader::GetFont(FontLoader::FontSize::widget_large));
-            auto windowSize = ImGui::GetWindowSize();
-            auto textSize = ImGui::CalcTextSize(text.c_str());
-            ImGui::SetCursorPos((windowSize - textSize) * 0.5f);
-            ImGui::Text(text.c_str());
-            ImGui::PopFont();
-            ImGui::PopStyleColor();
-        }
-        if (showValue && showIcon) 
-        {
+        if (showValue) {
             const auto centiseconds = (int)std::round(100 * (1.f - circlePortion));
             const auto text = std::to_string(centiseconds / 10) + "." + std::to_string(centiseconds % 10);
             ImGui::PushStyleColor(ImGuiCol_Text, color);
-            ImGui::PushFont(FontLoader::GetFont(FontLoader::FontSize::widget_label));
-            auto windowSize = ImGui::GetWindowSize();
-            auto textSize = ImGui::CalcTextSize(text.c_str());
-            ImGui::SetCursorPos((windowSize - textSize) * 0.5f + ImVec2(0,windowSize.y / 4));
+            ImGui::PushFont(FontLoader::GetFont(showIcon ? FontLoader::FontSize::widget_label : FontLoader::FontSize::widget_large));
+            const auto windowSize = ImGui::GetWindowSize();
+            const auto textSize = ImGui::CalcTextSize(text.c_str());
+            ImGui::SetCursorPos((windowSize - textSize) * 0.5f + ImVec2(0, showIcon ? windowSize.y / 4 : 0));
             ImGui::Text(text.c_str());
             ImGui::PopFont();
             ImGui::PopStyleColor();
