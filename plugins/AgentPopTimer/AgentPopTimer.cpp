@@ -178,6 +178,7 @@ namespace
         constexpr auto phiStepSize = 2 * pi / segmentCount;
 
         const auto center = ImVec2(pos.x + size.x * 0.5f + thickness * 0.5f, pos.y + size.y * 0.5f + thickness * 0.5f);
+        const auto windowSize = ImVec2(2 * radius + thickness, 2 * radius + thickness);
 
         // Background
         for (double phi = 0; phi < 2 * pi; phi += phiStepSize) 
@@ -204,7 +205,7 @@ namespace
         if (showIcon) 
         {
             const auto imageSize = ImVec2(46, 41);
-            ImGui::SetCursorPos((ImGui::GetWindowSize() - imageSize) * 0.5f);
+            ImGui::SetCursorPos((windowSize - imageSize) * 0.5f);
             ImGui::Image((ImTextureID)(intptr_t)*texture, imageSize);
         }
 
@@ -214,7 +215,6 @@ namespace
             const auto text = std::to_string(centiseconds / 10) + "." + std::to_string(centiseconds % 10);
             ImGui::PushStyleColor(ImGuiCol_Text, color);
             ImGui::PushFont(FontLoader::GetFont(showIcon ? FontLoader::FontSize::widget_label : FontLoader::FontSize::widget_large));
-            const auto windowSize = ImGui::GetWindowSize();
             const auto textSize = ImGui::CalcTextSize(text.c_str());
             ImGui::SetCursorPos((windowSize - textSize) * 0.5f + ImVec2(0, showIcon ? windowSize.y / 4 : 0));
             ImGui::Text(text.c_str());
@@ -252,9 +252,9 @@ void AgentPopTimer::Draw(IDirect3DDevice9* pDevice)
     if (!texture && !textureLoadingFailed) loadTexture(pDevice);
 
     const auto thickness = radius / 5;
-    ImGui::SetNextWindowSize(ImVec2(2 * radius + thickness, 2 * radius + thickness));
+    ImGui::SetNextWindowSize(ImVec2(2 * (radius + thickness), 2 * (radius + thickness)));
     SetNextWindowCenter(ImGuiCond_FirstUseEver);
-    if (ImGui::Begin(Name(), nullptr, GetWinFlags() | ImGuiWindowFlags_NoBackground)) 
+    if (ImGui::Begin(Name(), nullptr, GetWinFlags() | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar)) 
     {
         const auto circlePortion = (float)msSincePop / 10'000;
         circleSegment(circlePortion, radius, thickness, ImGui::ColorConvertFloat4ToU32(color), showIcon, showText);
