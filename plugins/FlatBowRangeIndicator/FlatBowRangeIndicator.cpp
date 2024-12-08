@@ -47,19 +47,6 @@ namespace {
     }
 } // namespace
 
-namespace ImGui {
-    void TextShadowed(const char* label, ImVec2 offset = {1, 1}, const ImVec4& shadow_color = {0, 0, 0, 1})
-    {
-        const ImVec2 pos = GetCursorPos();
-        ImGui::PushStyleColor(ImGuiCol_Text, shadow_color);
-        SetCursorPos(ImVec2(pos.x + offset.x, pos.y + offset.y));
-        TextUnformatted(label);
-        ImGui::PopStyleColor();
-        SetCursorPos(pos);
-        TextUnformatted(label);
-    }
-}
-
 FlatBowRangeIndicator::FlatBowRangeIndicator() 
 {
     show_closebutton = false;

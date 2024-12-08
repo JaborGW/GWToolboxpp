@@ -7,6 +7,7 @@
 #include <GWCA/Constants/ItemIds.h>
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/Packets/StoC.h>
+#include <Utils/FontLoader.h>
 
 #include <GWCA/Managers/UIMgr.h>
 #include <GWCA/Managers/ItemMgr.h>
@@ -158,9 +159,11 @@ namespace
     };
     MiniPetStatus mpStatus;
 
+    static inline ImVec2 operator+(ImVec2 lhs, ImVec2 rhs) { return {lhs.x + rhs.x, lhs.y + rhs.y}; }
     static inline ImVec2 operator-(ImVec2 lhs, ImVec2 rhs) { return {lhs.x - rhs.x, lhs.y - rhs.y}; }
     static inline ImVec2 operator*(ImVec2 lhs, float rhs) { return {lhs.x * rhs, lhs.y * rhs}; }
-    void circleSegment(float circlePortion, float radius, float thickness, ImU32 color)
+
+    void circleSegment(float circlePortion, float radius, float thickness, ImU32 color, bool showIcon, bool showValue)
     {
         const auto pos = ImGui::GetCursorScreenPos();
         const auto size = ImVec2(radius * 2, radius * 2);
@@ -197,11 +200,40 @@ namespace
         drawList->PathStroke(color, false, thickness);
         
         // Icon
-        if (texture) 
+        showIcon &= (bool)texture;
+        if (showIcon) 
         {
             const auto imageSize = ImVec2(46, 41);
             ImGui::SetCursorPos((ImGui::GetWindowSize() - imageSize) * 0.5f);
             ImGui::Image((ImTextureID)(intptr_t)*texture, imageSize);
+        }
+
+        // Value
+        if (showValue && !showIcon) 
+        {
+            const auto centiseconds = (int)std::round(100 * (1.f-circlePortion));
+            const auto text = std::to_string(centiseconds / 10) + "." + std::to_string(centiseconds % 10);
+            ImGui::PushStyleColor(ImGuiCol_Text, color);
+            ImGui::PushFont(FontLoader::GetFont(FontLoader::FontSize::widget_large));
+            auto windowSize = ImGui::GetWindowSize();
+            auto textSize = ImGui::CalcTextSize(text.c_str());
+            ImGui::SetCursorPos((windowSize - textSize) * 0.5f);
+            ImGui::Text(text.c_str());
+            ImGui::PopFont();
+            ImGui::PopStyleColor();
+        }
+        if (showValue && showIcon) 
+        {
+            const auto centiseconds = (int)std::round(100 * (1.f - circlePortion));
+            const auto text = std::to_string(centiseconds / 10) + "." + std::to_string(centiseconds % 10);
+            ImGui::PushStyleColor(ImGuiCol_Text, color);
+            ImGui::PushFont(FontLoader::GetFont(FontLoader::FontSize::widget_label));
+            auto windowSize = ImGui::GetWindowSize();
+            auto textSize = ImGui::CalcTextSize(text.c_str());
+            ImGui::SetCursorPos((windowSize - textSize) * 0.5f + ImVec2(0,windowSize.y / 4));
+            ImGui::Text(text.c_str());
+            ImGui::PopFont();
+            ImGui::PopStyleColor();
         }
     }
 
@@ -239,7 +271,7 @@ void MinipetPopIndicator::Draw(IDirect3DDevice9* pDevice)
     if (ImGui::Begin(Name(), nullptr, GetWinFlags() | ImGuiWindowFlags_NoBackground)) 
     {
         const auto circlePortion = (float)msSincePop / 10'000;
-        circleSegment(circlePortion, radius, thickness, ImGui::ColorConvertFloat4ToU32(color));
+        circleSegment(circlePortion, radius, thickness, ImGui::ColorConvertFloat4ToU32(color), showIcon, showText);
     }
 }
 
@@ -249,6 +281,8 @@ void MinipetPopIndicator::DrawSettings()
 
     ImGui::DragFloat("Indicator radius", &radius, 0.1f, 32.f, 150.f, "%1.f");
     ImGui::ColorEdit3("Border color", reinterpret_cast<float*>(&color));
+    ImGui::Checkbox("Show icon", &showIcon);
+    ImGui::Checkbox("Show value", &showText);
 
     ImGui::Text("Version 1.0.0. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
@@ -269,6 +303,8 @@ void MinipetPopIndicator::LoadSettings(const wchar_t* folder)
     color.x = (float)ini.GetDoubleValue(Name(), "BorderColorR", color.x);
     color.y = (float)ini.GetDoubleValue(Name(), "BorderColorG", color.y);
     color.z = (float)ini.GetDoubleValue(Name(), "BorderColorB", color.z);
+    showIcon = ini.GetBoolValue(Name(), VAR_NAME(showIcon), showIcon);
+    showText = ini.GetBoolValue(Name(), VAR_NAME(showText), showText);
 }
 
 void MinipetPopIndicator::SaveSettings(const wchar_t* folder)
@@ -279,6 +315,8 @@ void MinipetPopIndicator::SaveSettings(const wchar_t* folder)
     ini.SetDoubleValue(Name(), "BorderColorR", color.x);
     ini.SetDoubleValue(Name(), "BorderColorG", color.y);
     ini.SetDoubleValue(Name(), "BorderColorB", color.z);
+    ini.SetBoolValue(Name(), VAR_NAME(showIcon), showIcon);
+    ini.SetBoolValue(Name(), VAR_NAME(showText), showText);
 
     PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 }
