@@ -3,12 +3,12 @@
 #include <ToolboxUIPlugin.h>
 #include <imgui.h>
 
-class MinipetPopIndicator : public ToolboxUIPlugin {
+class AgentPopTimer : public ToolboxUIPlugin {
 public:
-    MinipetPopIndicator();
-    ~MinipetPopIndicator() override = default;
+    AgentPopTimer();
+    ~AgentPopTimer() override = default;
 
-    const char* Name() const override { return "MinipetPopIndicator"; }
+    const char* Name() const override { return "AgentPopTimer"; }
     const char* Icon() const override { return ICON_FA_CIRCLE; }
 
     void LoadSettings(const wchar_t*) override;

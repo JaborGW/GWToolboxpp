@@ -1,4 +1,4 @@
-#include "MinipetPopIndicator.h"
+#include "AgentPopTimer.h"
 
 #include <chrono>
 
@@ -18,7 +18,7 @@
 
 DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 {
-    static MinipetPopIndicator instance;
+    static AgentPopTimer instance;
     return &instance;
 }
 
@@ -244,7 +244,7 @@ namespace
     }
 }
 
-MinipetPopIndicator::MinipetPopIndicator() 
+AgentPopTimer::AgentPopTimer() 
 {
     show_closebutton = false;
     show_title = false;
@@ -255,7 +255,7 @@ MinipetPopIndicator::MinipetPopIndicator()
     is_resizable = false;
 }
 
-void MinipetPopIndicator::Draw(IDirect3DDevice9* pDevice)
+void AgentPopTimer::Draw(IDirect3DDevice9* pDevice)
 {
     UNREFERENCED_PARAMETER(pDevice);
     if (!GetVisiblePtr() || !*GetVisiblePtr())
@@ -275,7 +275,7 @@ void MinipetPopIndicator::Draw(IDirect3DDevice9* pDevice)
     }
 }
 
-void MinipetPopIndicator::DrawSettings()
+void AgentPopTimer::DrawSettings()
 {
     ToolboxUIPlugin::DrawSettings();
 
@@ -294,7 +294,7 @@ void MinipetPopIndicator::DrawSettings()
     }
 }
 
-void MinipetPopIndicator::LoadSettings(const wchar_t* folder)
+void AgentPopTimer::LoadSettings(const wchar_t* folder)
 {
     ToolboxUIPlugin::LoadSettings(folder);
 
@@ -307,7 +307,7 @@ void MinipetPopIndicator::LoadSettings(const wchar_t* folder)
     showText = ini.GetBoolValue(Name(), VAR_NAME(showText), showText);
 }
 
-void MinipetPopIndicator::SaveSettings(const wchar_t* folder)
+void AgentPopTimer::SaveSettings(const wchar_t* folder)
 {
     ToolboxUIPlugin::SaveSettings(folder);
 
@@ -321,7 +321,7 @@ void MinipetPopIndicator::SaveSettings(const wchar_t* folder)
     PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 }
 
-void MinipetPopIndicator::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMODULE toolbox_dll)
+void AgentPopTimer::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMODULE toolbox_dll)
 {
     ToolboxUIPlugin::Initialize(ctx, allocator_fns, toolbox_dll);
     
@@ -364,7 +364,7 @@ void MinipetPopIndicator::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_
     });
 }
 
-void MinipetPopIndicator::Terminate()
+void AgentPopTimer::Terminate()
 {
     GW::Terminate();
     ToolboxUIPlugin::Terminate();
