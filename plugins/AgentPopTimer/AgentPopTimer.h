@@ -20,8 +20,13 @@ public:
     void Terminate() override;
 
 private:
+    void drawCircleSegment(float circlePortion, float thickness) const;
+
     float radius = 50.f;
     ImVec4 color = {0.247f, 0.282f, 0.8f, 1.f};
     bool showIcon = true;
     bool showText = false;
+    bool showCircle = true;
+    bool showBackground = true;
+    int fontIndex = 1;
 };

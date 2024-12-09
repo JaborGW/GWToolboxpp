@@ -163,70 +163,21 @@ namespace
     static inline ImVec2 operator-(ImVec2 lhs, ImVec2 rhs) { return {lhs.x - rhs.x, lhs.y - rhs.y}; }
     static inline ImVec2 operator*(ImVec2 lhs, float rhs) { return {lhs.x * rhs, lhs.y * rhs}; }
 
-    void circleSegment(float circlePortion, float radius, float thickness, ImU32 color, bool showIcon, bool showValue)
-    {
-        const auto pos = ImGui::GetCursorScreenPos();
-        const auto size = ImVec2(radius * 2, radius * 2);
-
-        ImGui::Dummy(size);
-
-        auto drawList = ImGui::GetWindowDrawList();
-        drawList->PathClear();
-
-        constexpr auto segmentCount = 32;
-        constexpr auto pi = 3.141592653;
-        constexpr auto phiStepSize = 2 * pi / segmentCount;
-
-        const auto center = ImVec2(pos.x + size.x * 0.5f + thickness * 0.5f, pos.y + size.y * 0.5f + thickness * 0.5f);
-        const auto windowSize = ImVec2(2 * radius + thickness, 2 * radius + thickness);
-
-        // Background
-        for (double phi = 0; phi < 2 * pi; phi += phiStepSize) 
-        {
-            const auto backgroundRadius = radius + 0.4f * thickness;
-            const auto offsetPhi = -(phi + pi / 2);
-            drawList->PathLineTo(ImVec2(center.x + (float)std::cos(offsetPhi) * backgroundRadius, center.y + (float)std::sin(offsetPhi) * backgroundRadius));
-        }
-        const auto backgroundColor = ImGui::ColorConvertFloat4ToU32({0.15f, 0.15f, 0.15f, 0.8f});
-        drawList->PathFillConvex(backgroundColor);
-        drawList->PathClear();
-
-        // Outline
-        for (double phi = 0; phi < 2 * pi * circlePortion; phi += phiStepSize ) 
-        {
-            drawList->PathLineTo(ImVec2(center.x + (float)std::cos(-phi - pi / 2) * radius, center.y + (float)std::sin(-phi - pi / 2) * radius));
-        }
-        const auto phi = 2 * pi * circlePortion;
-        drawList->PathLineTo(ImVec2(center.x + (float)std::cos(-phi - pi / 2) * radius, center.y + (float)std::sin(-phi - pi / 2) * radius));
-        drawList->PathStroke(color, false, thickness);
-        
-        // Icon
-        showIcon &= (bool)texture;
-        if (showIcon) 
-        {
-            const auto imageSize = ImVec2(46, 41);
-            ImGui::SetCursorPos((windowSize - imageSize) * 0.5f);
-            ImGui::Image((ImTextureID)(intptr_t)*texture, imageSize);
-        }
-
-        // Value
-        if (showValue) {
-            const auto centiseconds = (int)std::round(100 * (1.f - circlePortion));
-            const auto text = std::to_string(centiseconds / 10) + "." + std::to_string(centiseconds % 10);
-            ImGui::PushStyleColor(ImGuiCol_Text, color);
-            ImGui::PushFont(FontLoader::GetFont(showIcon ? FontLoader::FontSize::widget_label : FontLoader::FontSize::widget_large));
-            const auto textSize = ImGui::CalcTextSize(text.c_str());
-            ImGui::SetCursorPos((windowSize - textSize) * 0.5f + ImVec2(0, showIcon ? windowSize.y / 4 : 0));
-            ImGui::Text(text.c_str());
-            ImGui::PopFont();
-            ImGui::PopStyleColor();
-        }
-    }
-
     void SetNextWindowCenter(const ImGuiWindowFlags flags)
     {
         const auto& io = ImGui::GetIO();
         ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), flags, ImVec2(0.5f, 0.5f));
+    }
+    
+    void TextShadowed(const char* label)
+    {
+        const auto pos = ImGui::GetCursorPos();
+        ImGui::PushStyleColor(ImGuiCol_Text, {0,0,0,1});
+        ImGui::SetCursorPos(pos + ImVec2{1,1});
+        ImGui::TextUnformatted(label);
+        ImGui::PopStyleColor();
+        ImGui::SetCursorPos(pos);
+        ImGui::TextUnformatted(label);
     }
 }
 
@@ -239,6 +190,70 @@ AgentPopTimer::AgentPopTimer()
     can_close = false;
     show_menubutton = false;
     is_resizable = false;
+}
+
+void AgentPopTimer::drawCircleSegment(float circlePortion, float thickness) const
+{
+    const auto pos = ImGui::GetCursorScreenPos();
+    const auto size = ImVec2(radius * 2, radius * 2);
+
+    ImGui::Dummy(size);
+
+    auto drawList = ImGui::GetWindowDrawList();
+    drawList->PathClear();
+
+    constexpr auto segmentCount = 64;
+    constexpr auto pi = 3.141592653;
+    constexpr auto phiStepSize = 2 * pi / segmentCount;
+
+    const auto center = ImVec2(pos.x + size.x * 0.5f + thickness * 0.5f, pos.y + size.y * 0.5f + thickness * 0.5f);
+
+    // Background
+    if (showBackground) {
+        for (double phi = 0; phi < 2 * pi; phi += phiStepSize) {
+            const auto backgroundRadius = radius + 0.4f * thickness;
+            const auto offsetPhi = -(phi + pi / 2);
+            drawList->PathLineTo(ImVec2(center.x + (float)std::cos(offsetPhi) * backgroundRadius, center.y + (float)std::sin(offsetPhi) * backgroundRadius));
+        }
+        const auto backgroundColor = ImGui::ColorConvertFloat4ToU32({0.15f, 0.15f, 0.15f, 0.8f});
+        drawList->PathFillConvex(backgroundColor);
+        drawList->PathClear();
+    }
+
+    // Outline
+    if (showCircle) {
+        for (double phi = 0; phi < 2 * pi * circlePortion; phi += phiStepSize) {
+            drawList->PathLineTo(ImVec2(center.x + (float)std::cos(-phi - pi / 2) * radius, center.y + (float)std::sin(-phi - pi / 2) * radius));
+        }
+        const auto phi = 2 * pi * circlePortion;
+        drawList->PathLineTo(ImVec2(center.x + (float)std::cos(-phi - pi / 2) * radius, center.y + (float)std::sin(-phi - pi / 2) * radius));
+        drawList->PathStroke(ImGui::ColorConvertFloat4ToU32(color), false, thickness);
+    }
+
+    constexpr auto defaultImageSize = ImVec2(46, 41);
+    auto textSize = ImVec2(0, 0);
+    const auto windowSize = ImVec2(2 * radius + thickness, 2 * radius + thickness);
+
+    // Value
+    if (showText) {
+        const auto centiseconds = (int)(100 * (1.f - circlePortion));
+        const auto text = std::to_string(centiseconds / 10) + "." + std::to_string(centiseconds % 10);
+        ImGui::PushStyleColor(ImGuiCol_Text, color);
+        ImGui::PushFont(FontLoader::GetFont(FontLoader::font_sizes[fontIndex + 3]));
+        textSize = ImGui::CalcTextSize(text.c_str());
+        ImGui::SetCursorPos((windowSize - textSize) * 0.5f + ImVec2(0, (showIcon && texture) ? textSize.y / 2 : 0));
+        showBackground ? ImGui::Text(text.c_str()) : TextShadowed(text.c_str());
+        ImGui::PopFont();
+        ImGui::PopStyleColor();
+    }
+
+    // Icon
+    if (showIcon && texture) 
+    {
+        const auto imageSize = showText ? textSize : defaultImageSize;
+        ImGui::SetCursorPos((windowSize - imageSize) * 0.5f - ImVec2(0, textSize.y / 2));
+        ImGui::Image((ImTextureID)(intptr_t)*texture, imageSize);
+    }
 }
 
 void AgentPopTimer::Draw(IDirect3DDevice9* pDevice)
@@ -257,7 +272,7 @@ void AgentPopTimer::Draw(IDirect3DDevice9* pDevice)
     if (ImGui::Begin(Name(), nullptr, GetWinFlags() | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar)) 
     {
         const auto circlePortion = (float)msSincePop / 10'000;
-        circleSegment(circlePortion, radius, thickness, ImGui::ColorConvertFloat4ToU32(color), showIcon, showText);
+        drawCircleSegment(circlePortion, thickness);
     }
 }
 
@@ -267,10 +282,21 @@ void AgentPopTimer::DrawSettings()
 
     ImGui::DragFloat("Indicator radius", &radius, 0.1f, 32.f, 150.f, "%1.f");
     ImGui::ColorEdit3("Border color", reinterpret_cast<float*>(&color));
-    ImGui::Checkbox("Show icon", &showIcon);
-    ImGui::Checkbox("Show value", &showText);
+    constexpr const char* fontSizeNames[] = {"Small", "Medium", "Large"};
+    ImGui::Combo("Text size", &fontIndex, fontSizeNames, 3);
+    ImGui::Text("Show:");
+    ImGui::SameLine();
+    ImGui::Checkbox("Icon", &showIcon);
+    ImGui::SameLine();
+    ImGui::Checkbox("Duration", &showText);
+    ImGui::SameLine();
+    ImGui::Checkbox("Ring", &showCircle);
+    ImGui::SameLine();
+    ImGui::Checkbox("Background", &showBackground);
 
-    ImGui::Text("Version 1.0.0. For new releases, feature requests and bug reports check out");
+
+
+    ImGui::Text("Version 1.1.0. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
@@ -291,6 +317,9 @@ void AgentPopTimer::LoadSettings(const wchar_t* folder)
     color.z = (float)ini.GetDoubleValue(Name(), "BorderColorB", color.z);
     showIcon = ini.GetBoolValue(Name(), VAR_NAME(showIcon), showIcon);
     showText = ini.GetBoolValue(Name(), VAR_NAME(showText), showText);
+    showCircle = ini.GetBoolValue(Name(), VAR_NAME(showCircle), showCircle);
+    showBackground = ini.GetBoolValue(Name(), VAR_NAME(showBackground), showBackground);
+    fontIndex = ini.GetLongValue(Name(), VAR_NAME(fontIndex), fontIndex);
 }
 
 void AgentPopTimer::SaveSettings(const wchar_t* folder)
@@ -303,6 +332,9 @@ void AgentPopTimer::SaveSettings(const wchar_t* folder)
     ini.SetDoubleValue(Name(), "BorderColorB", color.z);
     ini.SetBoolValue(Name(), VAR_NAME(showIcon), showIcon);
     ini.SetBoolValue(Name(), VAR_NAME(showText), showText);
+    ini.SetBoolValue(Name(), VAR_NAME(showCircle), showCircle);
+    ini.SetBoolValue(Name(), VAR_NAME(showBackground), showBackground);
+    ini.SetLongValue(Name(), VAR_NAME(fontIndex), fontIndex);
 
     PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 }

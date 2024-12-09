@@ -128,7 +128,7 @@ namespace
         if (showIcon) 
         {
             const auto imageSize = ImVec2(27, 46);
-            ImGui::SetCursorPos((ImGui::GetWindowSize() - imageSize) * 0.5f);
+            ImGui::SetCursorPos(center - imageSize * 0.5f);
             ImGui::Image((ImTextureID)(intptr_t)*texture, imageSize);
         }
 
