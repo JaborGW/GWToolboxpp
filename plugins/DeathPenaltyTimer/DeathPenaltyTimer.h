@@ -21,8 +21,15 @@ public:
     void Terminate() override;
 
 private:
+    void drawCircleSegment(float circlePortion, float thickness) const;
+
     float radius = 50.f;
     ImVec4 color = {0.925f, 0.11f, 0.141f, 1.f};
+    ImVec2 offset = {0.f, 0.f};
     bool showIcon = true;
     bool showText = false;
+    bool showCircle = true;
+    bool showBackground = true;
+    int fontSizeIndex = 1;
+    int imageSizeIndex = 1;
 };

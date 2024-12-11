@@ -119,6 +119,7 @@ namespace
         0xdd, 0xef, 0xa5, 0x81, 0xf0, 0x6c, 0xb0, 0xc7, 0x39, 0x74, 0xb8, 0x26, 0x91, 0xfd, 0x34, 0x29, 0x3e, 0xa6, 0xf1, 0x77, 0x10, 0x21, 0x4e, 0xf2, 0x39, 0xfe, 0x1f, 0x01, 0xfc, 0x01, 0xf8, 0x85, 0x21, 0x56, 0xf0, 0xc0, 0xd7, 0x92, 0x00, 0x00, 0x00,
         0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82
     };
+    constexpr std::array<ImVec2, 4> imageSizes = {ImVec2(27, 24), {46, 41}, {54, 48}, {67, 60}};
 
     std::unique_ptr<IDirect3DTexture9*> texture{};
     bool textureLoadingFailed = false;
@@ -162,6 +163,7 @@ namespace
     static inline ImVec2 operator+(ImVec2 lhs, ImVec2 rhs) { return {lhs.x + rhs.x, lhs.y + rhs.y}; }
     static inline ImVec2 operator-(ImVec2 lhs, ImVec2 rhs) { return {lhs.x - rhs.x, lhs.y - rhs.y}; }
     static inline ImVec2 operator*(ImVec2 lhs, float rhs) { return {lhs.x * rhs, lhs.y * rhs}; }
+    static inline ImVec2 operator+(ImVec2 lhs, float rhs) { return {lhs.x + rhs, lhs.y + rhs}; }
 
     void SetNextWindowCenter(const ImGuiWindowFlags flags)
     {
@@ -206,7 +208,7 @@ void AgentPopTimer::drawCircleSegment(float circlePortion, float thickness) cons
     constexpr auto pi = 3.141592653;
     constexpr auto phiStepSize = 2 * pi / segmentCount;
 
-    const auto center = ImVec2(pos.x + size.x * 0.5f + thickness * 0.5f, pos.y + size.y * 0.5f + thickness * 0.5f);
+    const auto center = pos + (size+thickness) * 0.5f;
 
     // Background
     if (showBackground) {
@@ -230,18 +232,19 @@ void AgentPopTimer::drawCircleSegment(float circlePortion, float thickness) cons
         drawList->PathStroke(ImGui::ColorConvertFloat4ToU32(color), false, thickness);
     }
 
-    constexpr auto defaultImageSize = ImVec2(46, 41);
-    auto textSize = ImVec2(0, 0);
-    const auto windowSize = ImVec2(2 * radius + thickness, 2 * radius + thickness);
+    auto yOffset = 0.f;
 
     // Value
-    if (showText) {
+    if (showText) 
+    {
         const auto centiseconds = (int)(100 * (1.f - circlePortion));
         const auto text = std::to_string(centiseconds / 10) + "." + std::to_string(centiseconds % 10);
         ImGui::PushStyleColor(ImGuiCol_Text, color);
-        ImGui::PushFont(FontLoader::GetFont(FontLoader::font_sizes[fontIndex + 3]));
-        textSize = ImGui::CalcTextSize(text.c_str());
-        ImGui::SetCursorPos((windowSize - textSize) * 0.5f + ImVec2(0, (showIcon && texture) ? textSize.y / 2 : 0));
+        ImGui::PushFont(FontLoader::GetFont(FontLoader::font_sizes[fontSizeIndex + 3]));
+        const auto textSize = ImGui::CalcTextSize(text.c_str());
+        yOffset = showIcon && texture ? (textSize.y + imageSizes[imageSizeIndex].y) / 2 : 0;
+
+        ImGui::SetCursorPos((size + thickness - textSize) * 0.5f + ImVec2(0, 3*yOffset/4) + offset);
         showBackground ? ImGui::Text(text.c_str()) : TextShadowed(text.c_str());
         ImGui::PopFont();
         ImGui::PopStyleColor();
@@ -250,8 +253,8 @@ void AgentPopTimer::drawCircleSegment(float circlePortion, float thickness) cons
     // Icon
     if (showIcon && texture) 
     {
-        const auto imageSize = showText ? textSize : defaultImageSize;
-        ImGui::SetCursorPos((windowSize - imageSize) * 0.5f - ImVec2(0, textSize.y / 2));
+        const auto imageSize = imageSizes[imageSizeIndex];
+        ImGui::SetCursorPos((size + thickness - imageSize) * 0.5f - ImVec2(0, yOffset/4) + offset);
         ImGui::Image((ImTextureID)(intptr_t)*texture, imageSize);
     }
 }
@@ -282,8 +285,10 @@ void AgentPopTimer::DrawSettings()
 
     ImGui::DragFloat("Indicator radius", &radius, 0.1f, 32.f, 150.f, "%1.f");
     ImGui::ColorEdit3("Border color", reinterpret_cast<float*>(&color));
-    constexpr const char* fontSizeNames[] = {"Small", "Medium", "Large"};
-    ImGui::Combo("Text size", &fontIndex, fontSizeNames, 3);
+    constexpr const char* fontSizeNames[] = {"Small", "Medium", "Large", "Very large"};
+    ImGui::Combo("Icon size", &imageSizeIndex, fontSizeNames, 4);
+    ImGui::Combo("Text size", &fontSizeIndex, fontSizeNames, 3);
+    ImGui::InputFloat2("Center content Offset", &offset.x);
     ImGui::Text("Show:");
     ImGui::SameLine();
     ImGui::Checkbox("Icon", &showIcon);
@@ -293,8 +298,6 @@ void AgentPopTimer::DrawSettings()
     ImGui::Checkbox("Ring", &showCircle);
     ImGui::SameLine();
     ImGui::Checkbox("Background", &showBackground);
-
-
 
     ImGui::Text("Version 1.1.0. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
@@ -315,11 +318,14 @@ void AgentPopTimer::LoadSettings(const wchar_t* folder)
     color.x = (float)ini.GetDoubleValue(Name(), "BorderColorR", color.x);
     color.y = (float)ini.GetDoubleValue(Name(), "BorderColorG", color.y);
     color.z = (float)ini.GetDoubleValue(Name(), "BorderColorB", color.z);
+    offset.x = (float)ini.GetDoubleValue(Name(), "offsetX", offset.x);
+    offset.y = (float)ini.GetDoubleValue(Name(), "offsetY", offset.y);
     showIcon = ini.GetBoolValue(Name(), VAR_NAME(showIcon), showIcon);
     showText = ini.GetBoolValue(Name(), VAR_NAME(showText), showText);
     showCircle = ini.GetBoolValue(Name(), VAR_NAME(showCircle), showCircle);
     showBackground = ini.GetBoolValue(Name(), VAR_NAME(showBackground), showBackground);
-    fontIndex = ini.GetLongValue(Name(), VAR_NAME(fontIndex), fontIndex);
+    fontSizeIndex = ini.GetLongValue(Name(), VAR_NAME(fontSizeIndex), fontSizeIndex);
+    imageSizeIndex = ini.GetLongValue(Name(), VAR_NAME(imageSizeIndex), imageSizeIndex);
 }
 
 void AgentPopTimer::SaveSettings(const wchar_t* folder)
@@ -330,11 +336,14 @@ void AgentPopTimer::SaveSettings(const wchar_t* folder)
     ini.SetDoubleValue(Name(), "BorderColorR", color.x);
     ini.SetDoubleValue(Name(), "BorderColorG", color.y);
     ini.SetDoubleValue(Name(), "BorderColorB", color.z);
+    ini.SetDoubleValue(Name(), "offsetX", offset.x);
+    ini.SetDoubleValue(Name(), "offsetY", offset.y);
     ini.SetBoolValue(Name(), VAR_NAME(showIcon), showIcon);
     ini.SetBoolValue(Name(), VAR_NAME(showText), showText);
     ini.SetBoolValue(Name(), VAR_NAME(showCircle), showCircle);
     ini.SetBoolValue(Name(), VAR_NAME(showBackground), showBackground);
-    ini.SetLongValue(Name(), VAR_NAME(fontIndex), fontIndex);
+    ini.SetLongValue(Name(), VAR_NAME(fontSizeIndex), fontSizeIndex);
+    ini.SetLongValue(Name(), VAR_NAME(imageSizeIndex), imageSizeIndex);
 
     PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 }

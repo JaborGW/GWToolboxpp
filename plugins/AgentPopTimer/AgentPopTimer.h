@@ -9,7 +9,7 @@ public:
     ~AgentPopTimer() override = default;
 
     const char* Name() const override { return "AgentPopTimer"; }
-    const char* Icon() const override { return ICON_FA_CIRCLE; }
+    const char* Icon() const override { return ICON_FA_RING; }
 
     void LoadSettings(const wchar_t*) override;
     void SaveSettings(const wchar_t*) override;
@@ -24,9 +24,11 @@ private:
 
     float radius = 50.f;
     ImVec4 color = {0.247f, 0.282f, 0.8f, 1.f};
+    ImVec2 offset = {0.f, 0.f};
     bool showIcon = true;
     bool showText = false;
     bool showCircle = true;
     bool showBackground = true;
-    int fontIndex = 1;
+    int fontSizeIndex = 1;
+    int imageSizeIndex = 1;
 };

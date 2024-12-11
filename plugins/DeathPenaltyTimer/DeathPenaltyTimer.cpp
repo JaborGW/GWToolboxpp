@@ -62,6 +62,7 @@ namespace
         0xae, 0x13, 0xf1, 0x55, 0x07, 0xe9, 0x8b, 0xf2, 0x74, 0x92, 0x2c, 0x99, 0x25, 0xbf, 0x19, 0x71, 0x0c, 0x1f, 0xb1, 0xeb, 0x44, 0x5c, 0x8c, 0x2b, 0x0b, 0xc6, 0xd8, 0x10, 0xc6, 0xee, 0xff, 0x09, 0x66, 0x6a, 0xec, 0x04, 0x26, 0xc7, 0x08, 0xc9, 0x92,
         0xb9, 0xa2, 0x60, 0x19, 0x83, 0xf5, 0x1b, 0x99, 0x4c, 0xc9, 0x2b, 0x87, 0x44, 0xd3, 0xfe, 0x01, 0x8d, 0x50, 0xa1, 0x45, 0x0d, 0x59, 0x1d, 0xff, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82
     };
+    constexpr std::array<ImVec2, 4> imageSizes = {ImVec2(16, 28), {27, 46}, {32, 55}, {39, 58}};
 
     std::unique_ptr<IDirect3DTexture9*> texture{};
     bool textureLoadingFailed = false;
@@ -86,26 +87,45 @@ namespace
     static inline ImVec2 operator+(ImVec2 lhs, ImVec2 rhs) { return {lhs.x + rhs.x, lhs.y + rhs.y}; }
     static inline ImVec2 operator-(ImVec2 lhs, ImVec2 rhs) { return {lhs.x - rhs.x, lhs.y - rhs.y}; }
     static inline ImVec2 operator*(ImVec2 lhs, float rhs) { return {lhs.x * rhs, lhs.y * rhs}; }
+    static inline ImVec2 operator+(ImVec2 lhs, float rhs) { return {lhs.x + rhs, lhs.y + rhs}; }
 
-    void circleSegment(float circlePortion, float radius, float thickness, ImU32 color, bool showIcon, bool showValue)
+    void SetNextWindowCenter(const ImGuiWindowFlags flags)
     {
-        const auto pos = ImGui::GetCursorScreenPos();
-        const auto size = ImVec2(radius * 2, radius * 2);
+        const auto& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), flags, ImVec2(0.5f, 0.5f));
+    }
 
-        ImGui::Dummy(size);
+    void TextShadowed(const char* label)
+    {
+        const auto pos = ImGui::GetCursorPos();
+        ImGui::PushStyleColor(ImGuiCol_Text, {0, 0, 0, 1});
+        ImGui::SetCursorPos(pos + ImVec2{1, 1});
+        ImGui::TextUnformatted(label);
+        ImGui::PopStyleColor();
+        ImGui::SetCursorPos(pos);
+        ImGui::TextUnformatted(label);
+    }
+}
 
-        auto drawList = ImGui::GetWindowDrawList();
-        drawList->PathClear();
+void DeathPenaltyTimer::drawCircleSegment(float circlePortion, float thickness) const
+{
+    const auto pos = ImGui::GetCursorScreenPos();
+    const auto size = ImVec2(radius * 2, radius * 2);
 
-        constexpr auto segmentCount = 32;
-        constexpr auto pi = 3.141592653;
-        constexpr auto phiStepSize = 2 * pi / segmentCount;
+    ImGui::Dummy(size);
 
-        const auto center = ImVec2(pos.x + size.x * 0.5f + thickness * 0.5f, pos.y + size.y * 0.5f + thickness * 0.5f);
+    auto drawList = ImGui::GetWindowDrawList();
+    drawList->PathClear();
 
-        // Background
-        for (double phi = 0; phi < 2 * pi; phi += phiStepSize) 
-        {
+    constexpr auto segmentCount = 64;
+    constexpr auto pi = 3.141592653;
+    constexpr auto phiStepSize = 2 * pi / segmentCount;
+
+    const auto center = pos + (size + thickness) * 0.5f;
+
+    // Background
+    if (showBackground) {
+        for (double phi = 0; phi < 2 * pi; phi += phiStepSize) {
             const auto backgroundRadius = radius + 0.4f * thickness;
             const auto offsetPhi = -(phi + pi / 2);
             drawList->PathLineTo(ImVec2(center.x + (float)std::cos(offsetPhi) * backgroundRadius, center.y + (float)std::sin(offsetPhi) * backgroundRadius));
@@ -113,45 +133,40 @@ namespace
         const auto backgroundColor = ImGui::ColorConvertFloat4ToU32({0.15f, 0.15f, 0.15f, 0.8f});
         drawList->PathFillConvex(backgroundColor);
         drawList->PathClear();
+    }
 
-        // Outline
-        for (double phi = 0; phi < 2 * pi * circlePortion; phi += phiStepSize ) 
-        {
+    // Outline
+    if (showCircle) {
+        for (double phi = 0; phi < 2 * pi * circlePortion; phi += phiStepSize) {
             drawList->PathLineTo(ImVec2(center.x + (float)std::cos(-phi - pi / 2) * radius, center.y + (float)std::sin(-phi - pi / 2) * radius));
         }
         const auto phi = 2 * pi * circlePortion;
         drawList->PathLineTo(ImVec2(center.x + (float)std::cos(-phi - pi / 2) * radius, center.y + (float)std::sin(-phi - pi / 2) * radius));
-        drawList->PathStroke(color, false, thickness);
-        
-        // Icon
-        showIcon &= (bool)texture;
-        if (showIcon) 
-        {
-            const auto imageSize = ImVec2(27, 46);
-            ImGui::SetCursorPos(center - imageSize * 0.5f);
-            ImGui::Image((ImTextureID)(intptr_t)*texture, imageSize);
-        }
-
-        // Value
-        if (showValue) 
-        {
-            const auto centiseconds = (int)std::round(150 * (1.f-circlePortion));
-            const auto text = std::to_string(centiseconds / 10) + "." + std::to_string(centiseconds % 10);
-            ImGui::PushStyleColor(ImGuiCol_Text, color);
-            ImGui::PushFont(FontLoader::GetFont(showIcon ? FontLoader::FontSize::widget_label : FontLoader::FontSize::widget_large));
-            const auto windowSize = ImGui::GetWindowSize();
-            const auto textSize = ImGui::CalcTextSize(text.c_str());
-            ImGui::SetCursorPos((windowSize - textSize) * 0.5f + ImVec2(0, showIcon ? windowSize.y / 4 : 0));
-            ImGui::Text(text.c_str());
-            ImGui::PopFont();
-            ImGui::PopStyleColor();
-        }
+        drawList->PathStroke(ImGui::ColorConvertFloat4ToU32(color), false, thickness);
     }
 
-    void SetNextWindowCenter(const ImGuiWindowFlags flags)
-    {
-        const auto& io = ImGui::GetIO();
-        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), flags, ImVec2(0.5f, 0.5f));
+    auto yOffset = 0.f;
+
+    // Value
+    if (showText) {
+        const auto centiseconds = (int)(150 * (1.f - circlePortion));
+        const auto text = std::to_string(centiseconds / 10) + "." + std::to_string(centiseconds % 10);
+        ImGui::PushStyleColor(ImGuiCol_Text, color);
+        ImGui::PushFont(FontLoader::GetFont(FontLoader::font_sizes[fontSizeIndex + 3]));
+        const auto textSize = ImGui::CalcTextSize(text.c_str());
+        yOffset = showIcon && texture ? (textSize.y + imageSizes[imageSizeIndex].y) / 2 : 0;
+
+        ImGui::SetCursorPos((size + thickness - textSize) * 0.5f + ImVec2(0, 3 * yOffset / 4) + offset);
+        showBackground ? ImGui::Text(text.c_str()) : TextShadowed(text.c_str());
+        ImGui::PopFont();
+        ImGui::PopStyleColor();
+    }
+
+    // Icon
+    if (showIcon && texture) {
+        const auto imageSize = imageSizes[imageSizeIndex];
+        ImGui::SetCursorPos((size + thickness - imageSize) * 0.5f - ImVec2(0, yOffset / 4) + offset);
+        ImGui::Image((ImTextureID)(intptr_t)*texture, imageSize);
     }
 }
 
@@ -170,8 +185,6 @@ DeathPenaltyTimer::DeathPenaltyTimer()
 void DeathPenaltyTimer::Update(float delta)
 {
     ToolboxUIPlugin::Update(delta);
-
-    
 
     const auto player = GW::Agents::GetControlledCharacter();
     if (!player) return;
@@ -199,7 +212,7 @@ void DeathPenaltyTimer::Draw(IDirect3DDevice9* pDevice)
     if (ImGui::Begin(Name(), nullptr, GetWinFlags() | ImGuiWindowFlags_NoBackground)) 
     {
         const auto circlePortion = (float)msSinceRevive / 15'000;
-        circleSegment(circlePortion, radius, thickness, ImGui::ColorConvertFloat4ToU32(color), showIcon, showText);
+        drawCircleSegment(circlePortion, thickness);
     }
 }
 
@@ -209,10 +222,21 @@ void DeathPenaltyTimer::DrawSettings()
 
     ImGui::DragFloat("Indicator radius", &radius, 0.1f, 32.f, 150.f, "%1.f");
     ImGui::ColorEdit3("Border color", reinterpret_cast<float*>(&color));
-    ImGui::Checkbox("Show icon", &showIcon);
-    ImGui::Checkbox("Show value", &showText);
+    constexpr const char* fontSizeNames[] = {"Small", "Medium", "Large", "Very large"};
+    ImGui::Combo("Icon size", &imageSizeIndex, fontSizeNames, 4);
+    ImGui::Combo("Text size", &fontSizeIndex, fontSizeNames, 3);
+    ImGui::InputFloat2("Center content Offset", &offset.x);
+    ImGui::Text("Show:");
+    ImGui::SameLine();
+    ImGui::Checkbox("Icon", &showIcon);
+    ImGui::SameLine();
+    ImGui::Checkbox("Duration", &showText);
+    ImGui::SameLine();
+    ImGui::Checkbox("Ring", &showCircle);
+    ImGui::SameLine();
+    ImGui::Checkbox("Background", &showBackground);
 
-    ImGui::Text("Version 1.0.0. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.1.0. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
@@ -231,8 +255,14 @@ void DeathPenaltyTimer::LoadSettings(const wchar_t* folder)
     color.x = (float)ini.GetDoubleValue(Name(), "BorderColorR", color.x);
     color.y = (float)ini.GetDoubleValue(Name(), "BorderColorG", color.y);
     color.z = (float)ini.GetDoubleValue(Name(), "BorderColorB", color.z);
+    offset.x = (float)ini.GetDoubleValue(Name(), "offsetX", offset.x);
+    offset.y = (float)ini.GetDoubleValue(Name(), "offsetY", offset.y);
     showIcon = ini.GetBoolValue(Name(), VAR_NAME(showIcon), showIcon);
     showText = ini.GetBoolValue(Name(), VAR_NAME(showText), showText);
+    showCircle = ini.GetBoolValue(Name(), VAR_NAME(showCircle), showCircle);
+    showBackground = ini.GetBoolValue(Name(), VAR_NAME(showBackground), showBackground);
+    fontSizeIndex = ini.GetLongValue(Name(), VAR_NAME(fontSizeIndex), fontSizeIndex);
+    imageSizeIndex = ini.GetLongValue(Name(), VAR_NAME(imageSizeIndex), imageSizeIndex);
 }
 
 void DeathPenaltyTimer::SaveSettings(const wchar_t* folder)
@@ -243,8 +273,14 @@ void DeathPenaltyTimer::SaveSettings(const wchar_t* folder)
     ini.SetDoubleValue(Name(), "BorderColorR", color.x);
     ini.SetDoubleValue(Name(), "BorderColorG", color.y);
     ini.SetDoubleValue(Name(), "BorderColorB", color.z);
+    ini.SetDoubleValue(Name(), "offsetX", offset.x);
+    ini.SetDoubleValue(Name(), "offsetY", offset.y);
     ini.SetBoolValue(Name(), VAR_NAME(showIcon), showIcon);
     ini.SetBoolValue(Name(), VAR_NAME(showText), showText);
+    ini.SetBoolValue(Name(), VAR_NAME(showCircle), showCircle);
+    ini.SetBoolValue(Name(), VAR_NAME(showBackground), showBackground);
+    ini.SetLongValue(Name(), VAR_NAME(fontSizeIndex), fontSizeIndex);
+    ini.SetLongValue(Name(), VAR_NAME(imageSizeIndex), imageSizeIndex);
 
     PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 }
