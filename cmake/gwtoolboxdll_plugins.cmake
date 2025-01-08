@@ -4,6 +4,8 @@ target_sources(plugin_base INTERFACE
     "plugins/Base/stl.h"
     "plugins/Base/ToolboxPlugin.h"
     "plugins/Base/ToolboxPlugin.cpp"
+    "plugins/Base/Pathing.h"
+    "plugins/Base/Pathing.cpp"
     "plugins/Base/PluginUtils.h"
     "plugins/Base/PluginUtils.cpp"
     "plugins/Base/ToolboxUIPlugin.h"
@@ -48,9 +50,9 @@ add_tb_plugin(ExamplePlugin)
 add_tb_plugin(FlatBowRangeIndicator)
 add_tb_plugin(Follow)
 add_tb_plugin(LeechSignetCancel)
-add_tb_plugin(PathingIndicator)
 add_tb_plugin(PitsSoulsWindow)
 add_tb_plugin(RawDialogs)
+add_tb_plugin(ShadowstepPredictor)
 add_tb_plugin(Slowload)
 
 target_link_libraries(AgentPopTimer PRIVATE directxtex)
