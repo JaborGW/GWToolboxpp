@@ -165,9 +165,12 @@ namespace
         const auto failureStart = partialStart + chances.partial * size.x;
         const auto failureEnd = partialStart + chances.failure * size.x;
 
-        draw_list->AddRectFilled({successStart, topLeft.y}, {partialStart, topLeft.y + size.y}, ImGui::ColorConvertFloat4ToU32(success));
-        draw_list->AddRectFilled({partialStart, topLeft.y}, {failureStart, topLeft.y + size.y}, ImGui::ColorConvertFloat4ToU32(partial));
-        draw_list->AddRectFilled({failureStart, topLeft.y}, {  failureEnd, topLeft.y + size.y}, ImGui::ColorConvertFloat4ToU32(failure));
+        if (chances.success > 0.)
+            draw_list->AddRectFilled({successStart, topLeft.y}, {partialStart, topLeft.y + size.y}, ImGui::ColorConvertFloat4ToU32(success));
+        if (chances.partial > 0.)
+            draw_list->AddRectFilled({partialStart, topLeft.y}, {failureStart, topLeft.y + size.y}, ImGui::ColorConvertFloat4ToU32(partial));
+        if (chances.failure > 0.)
+            draw_list->AddRectFilled({failureStart, topLeft.y}, {  failureEnd, topLeft.y + size.y}, ImGui::ColorConvertFloat4ToU32(failure));
     }
 }
 
@@ -257,6 +260,15 @@ void ShadowstepPredictor::DrawSettings()
     ImGui::ColorEdit4("Success", reinterpret_cast<float*>(&successColor.x));
     ImGui::ColorEdit4("Partial", reinterpret_cast<float*>(&partialColor.x));
     ImGui::ColorEdit4("Failure", reinterpret_cast<float*>(&failureColor.x));
+
+    ImGui::Text("Version 1.0. For new releases, feature requests and bug reports check out");
+    ImGui::SameLine();
+
+    constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
+    ImGui::TextColored(ImColor{102, 187, 238, 255}, discordInviteLink);
+    if (ImGui::IsItemClicked()) {
+        ShellExecute(nullptr, "open", discordInviteLink, nullptr, nullptr, SW_SHOWNORMAL);
+    }
 }
 
 void ShadowstepPredictor::Initialize(ImGuiContext* ctx, const ImGuiAllocFns allocator_fns, const HMODULE toolbox_dll)
