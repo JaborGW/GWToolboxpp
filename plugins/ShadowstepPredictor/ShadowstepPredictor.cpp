@@ -291,6 +291,7 @@ void ShadowstepPredictor::Initialize(ImGuiContext* ctx, const ImGuiAllocFns allo
         chances.clear();
         shadowOfHasteLocation = {};
         shadowWalkLocation = {};
+        recallTargetId = 0;
         path_map = nullptr;
     });
 

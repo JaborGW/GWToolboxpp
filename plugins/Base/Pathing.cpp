@@ -155,7 +155,7 @@ OutcomeChances dcPrediction(const PathPoint& playerPathPoint, const GW::Agent* t
             trap = findContainingNeighbour(pos, targetTrap);
             currentOffset /= 2;
         }
-        handleResult(canPathToTarget(playerPathPoint, {pos, trap}));
+        handleResult(canPathToTarget(playerPathPoint, {GW::GamePos{pos.x, pos.y, target->pos.zplane}, trap}));
     }
 
     return chances;
