@@ -19,7 +19,7 @@ float Cross(const GW::Vec2f& lhs, const GW::Vec2f& rhs)
 
 void InitializePathing() 
 {
-    FindPath_Func = (FindPath_pt)GW::Scanner::Find("\x83\xec\x20\x53\x56\x57\xe8\x92\x8a\xdd", "xxxxxxxxxx", -0x3);
+    FindPath_Func = (FindPath_pt)GW::Scanner::Find("\x83\xec\x20\x53\x56\x57\xe8\xa2\x75\xdd", "xxxxxxxxxx", -0x3);
 }
 
 enum class PathingResult { CanPath, CanPartiallyPath, CannotPath, Unknown };
