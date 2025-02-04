@@ -24,7 +24,6 @@ namespace {
     {
         ctosIsInitialized = true;
         GW::CtoS::Init();
-        GW::CtoS::EnableHooks();
     }
     void sendDialog(DWORD dialogId)
     {
@@ -172,7 +171,7 @@ void RawDialogs::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMOD
 
 bool RawDialogs::CanTerminate()
 {
-    return GW::HookBase::GetInHookCount() == 0 && GW::CtoS::HookCount() == 0 && ToolboxPlugin::CanTerminate();
+    return GW::HookBase::GetInHookCount() == 0 && ToolboxPlugin::CanTerminate();
 }
 
 void RawDialogs::SignalTerminate()
@@ -180,12 +179,10 @@ void RawDialogs::SignalTerminate()
     ToolboxPlugin::SignalTerminate();
     GW::UI::RemoveUIMessageCallback(&OnSentChat_HookEntry, GW::UI::UIMessage::kSendChatMessage);
     GW::DisableHooks();
-    GW::CtoS::DisableHooks();
 }
 
 void RawDialogs::Terminate()
 {
     ToolboxPlugin::Terminate();
-    GW::CtoS::Exit();
     GW::Terminate();
 }
