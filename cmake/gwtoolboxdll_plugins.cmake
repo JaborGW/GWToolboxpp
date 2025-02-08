@@ -54,6 +54,7 @@ add_tb_plugin(PitsSoulsWindow)
 add_tb_plugin(RawDialogs)
 add_tb_plugin(ShadowstepPredictor)
 add_tb_plugin(Slowload)
+add_tb_plugin(DhuumCalculator)
 
 target_link_libraries(AgentPopTimer PRIVATE directxtex)
 target_link_libraries(DeathPenaltyTimer PRIVATE directxtex)
