@@ -66,35 +66,6 @@ namespace PluginUtils {
     size_t TimeToString(time_t utc_timestamp, std::string& out);
     size_t TimeToString(FILETIME utc_timestamp, std::string& out);
 
-    template <map_type T>
-    void MapToIni(ToolboxIni* ini, const char* section, const char* name, const T& map)
-    {
-        const auto map_json = nlohmann::json(map);
-        const auto map_str = map_json.dump();
-        ini->SetValue(section, name, map_str.c_str());
-    }
-
-    template <map_type T>
-    T IniToMap(ToolboxIni* ini, const char* section, const char* name)
-    {
-        std::string map_str = ini->GetValue(section, name, "");
-        try {
-            const auto map_json = nlohmann::json::parse(map_str);
-            return map_json.get<T>();
-        } catch (nlohmann::json::exception e) {
-            return {};
-        }
-    }
-
-    template <map_type T>
-    T IniToMap(ToolboxIni* ini, const char* section, const char* name, T default_map)
-    {
-        if (!ini->KeyExists(section, name)) {
-            return std::move(default_map);
-        }
-        return IniToMap<T>(ini, section, name);
-    }
-
     enum class SkillbarLayout { Row, Rows, Column, Columns };
     struct SkillbarInfo {
         SkillbarLayout layout = SkillbarLayout::Row;
