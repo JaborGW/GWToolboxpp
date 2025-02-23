@@ -29,4 +29,5 @@ private:
     ImVec4 color = {1.f, 0.f, 0.f, 1.f};
     int projectileTimer = 1000;
     std::vector<GW::Constants::SkillID> trackedSkills = {GW::Constants::SkillID::Bone_Spike, GW::Constants::SkillID::Flurry_of_Splinters};
+    std::vector<int> trackedEnemyModels = {};
 };

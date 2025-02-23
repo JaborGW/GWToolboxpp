@@ -86,46 +86,37 @@ namespace {
         {
             if (vb != nullptr) {
                 vb->Release();
+                vb = nullptr;
             }
         }
 
         // copy not allowed
         GenericPolyRenderable(const GenericPolyRenderable&) = delete;
-
-        GenericPolyRenderable(GenericPolyRenderable&& other) noexcept
-            : map_id(other.map_id), col(other.col), filled(other.filled), from_player_pos(other.from_player_pos), use_dotted_effect(other.use_dotted_effect), vertices_processed(other.vertices_processed), vb(other.vb)
-        {
-            other.vb = nullptr;
-            despawnTime = other.despawnTime;
-            points = std::move(other.points);
-            other.points.clear();
-            vertices = std::move(other.vertices);
-            other.vertices.clear();
-        }
-
-        // copy not allowed
         GenericPolyRenderable& operator=(const GenericPolyRenderable& other) = delete;
 
         GenericPolyRenderable& operator=(GenericPolyRenderable&& other) noexcept
         {
-            if (vb && vb != other.vb) {
+            if (vb && vb != other.vb) 
+            {
                 vb->Release();
             }
             vb = other.vb; // Move the buffer!
             other.vb = nullptr;
-            points = std::move(other.points);
-            vertices = std::move(other.vertices);
 
-            despawnTime = other.despawnTime;
             map_id = other.map_id;
             col = other.col;
+            points = std::move(other.points);
+            vertices = std::move(other.vertices);
+            vertices_zplanes = std::move(other.vertices_zplanes);
+            despawnTime = std::move(other.despawnTime);
             filled = other.filled;
-            vertices_processed = other.vertices_processed;
             from_player_pos = other.from_player_pos;
             use_dotted_effect = other.use_dotted_effect;
+            vertices_processed = other.vertices_processed;
 
             return *this;
         }
+        GenericPolyRenderable(GenericPolyRenderable&& other) noexcept { *this = std::move(other); }
 
         void Draw(IDirect3DDevice9* device);
         GW::Constants::MapID map_id{};
@@ -155,7 +146,7 @@ namespace {
         constexpr size_t num_points_per_circle = 48;
         constexpr auto slice = 2.0f * pi / static_cast<float>(num_points_per_circle);
 
-        const auto BDirection = GW::Normalize(GW::Vec2f{-ADirection.y, ADirection.x});
+        const auto BDirection = GW::Vec2f{-ADirection.y, ADirection.x};
         const auto scaledA = a * ADirection;
         const auto scaledB = b * BDirection;
 
@@ -392,6 +383,7 @@ namespace {
 namespace RenderingUtils {
     void clearDrawingList()
     {
+        if (renderables.empty()) return;
         std::scoped_lock lock{renderables_mutex};
         renderables.clear();
     }
@@ -405,6 +397,7 @@ namespace RenderingUtils {
     {
         auto circlePositions = ellipsoidal_points_from_marker(center, ADirection, a, b);
         std::scoped_lock lock{renderables_mutex};
+
         if (msToShow) {
             auto despawnTime = std::chrono::steady_clock::now() + std::chrono::milliseconds{*msToShow};
             renderables.push_back(GenericPolyRenderable{circlePositions, color, filled, despawnTime});
@@ -450,8 +443,7 @@ namespace RenderingUtils {
 
             constexpr auto pixel_shader_cur_pos_offset = 0u;
             constexpr auto pixel_shader_max_dist_offset = 1u;
-            constexpr auto pixel_shader_fog_starts_at_offset = 2u;
-
+            
             const float cur_pos_constant[4] = {cam->look_at_target.x, cam->look_at_target.y, cam->look_at_target.z, 0.0f};
             if (device->SetPixelShaderConstantF(pixel_shader_cur_pos_offset, cur_pos_constant, 1) != D3D_OK) {
                 return;
@@ -460,12 +452,6 @@ namespace RenderingUtils {
             // second is the render max distance
             const float max_dist_constant[4] = {render_max_distance, 0.0f, 0.0f, 0.0f};
             if (device->SetPixelShaderConstantF(pixel_shader_max_dist_offset, max_dist_constant, 1) != D3D_OK) {
-                return;
-            }
-
-            // third is the fog constant
-            const float fog_starts_at_constant[4] = {render_max_distance - render_max_distance * fog_factor, 0.0f, 0.0f, 0.0f};
-            if (device->SetPixelShaderConstantF(pixel_shader_fog_starts_at_offset, fog_starts_at_constant, 1) != D3D_OK) {
                 return;
             }
 

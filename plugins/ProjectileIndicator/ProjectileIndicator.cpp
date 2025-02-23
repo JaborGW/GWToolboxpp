@@ -2,11 +2,13 @@
 
 #include <PluginUtils.h>
 #include <Rendering.h>
+#include <ModelNames.h>
 
 #include <GWCA/Managers/StoCMgr.h>
 #include <GWCA/Managers/AgentMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
 #include <GWCA/Managers/UIMgr.h>
+#include <GWCA/Managers/MapMgr.h>
 
 #include <GWCA/GameEntities/Agent.h>
 #include <GWCA/GameEntities/Skill.h>
@@ -23,11 +25,15 @@ DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 namespace 
 {
     GW::HookEntry projectileHook;
-    GW::HookEntry instanceLoadFileHook;
 
     constexpr auto ellipsisA = 125.f;
     constexpr auto ellipsisB = 50.f;
-    
+
+    bool shouldRender() 
+    {
+        return GW::Map::GetInstanceType() == GW::Constants::InstanceType::Explorable && GW::Agents::GetControlledCharacter() && !GW::Agents::IsObserving();
+    }
+
     std::string getSkillName(GW::Constants::SkillID id)
     {
         if (id == GW::Constants::SkillID::No_Skill) return "Auto-Attack";
@@ -49,31 +55,26 @@ namespace
 
 void ProjectileIndicator::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODULE toolbox_dll) {
 
-    ToolboxPlugin::Initialize(ctx, fns, toolbox_dll);
-    GW::Initialize();
+    ToolboxUIPlugin::Initialize(ctx, fns, toolbox_dll);
 
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::AgentProjectileLaunched>(&projectileHook, [this](GW::HookStatus*, GW::Packet::StoC::AgentProjectileLaunched* packet) -> void {
+        if (!shouldRender()) return;
         const auto agent = GW::Agents::GetAgentByID(packet->agent_id);
         if (!agent || !agent->GetIsLivingType()) return;
         const auto living = agent->GetAsAgentLiving();
         if (living->allegiance != GW::Constants::Allegiance::Enemy || !std::ranges::contains(trackedSkills, (GW::Constants::SkillID)agent->GetAsAgentLiving()->skill)) return;
-        
+        if (!trackedEnemyModels.empty() && !std::ranges::contains(trackedEnemyModels, (int)living->player_number)) return;
+
         const auto ADirection = GW::Normalize(GW::Vec2f{GW::Agents::GetControlledCharacter()->pos} - GW::Vec2f{living->pos});
         RenderingUtils::addEllipseToDraw(packet->destination, ADirection, ellipsisA, ellipsisB, ImGui::ColorConvertFloat4ToU32(color), filled, projectileTimer);        
     });
-
-    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::InstanceLoadFile>(&instanceLoadFileHook, [](auto*, auto*) -> void 
-    {
-        RenderingUtils::clearDrawingList();
-    });
-    
 }
+
 void ProjectileIndicator::SignalTerminate()
 {
     ToolboxPlugin::SignalTerminate();
 
     GW::StoC::RemoveCallback<GW::Packet::StoC::AgentProjectileLaunched>(&projectileHook);
-    GW::StoC::RemoveCallback<GW::Packet::StoC::InstanceLoadStart>(&instanceLoadFileHook);
     GW::DisableHooks();
 }
 bool ProjectileIndicator::CanTerminate()
@@ -90,7 +91,10 @@ void ProjectileIndicator::Terminate()
 
 void ProjectileIndicator::Draw(IDirect3DDevice9* device) 
 {
-    RenderingUtils::draw(device);
+    if (shouldRender())
+        RenderingUtils::draw(device);
+    else
+        RenderingUtils::clearDrawingList();
 }
 
 void ProjectileIndicator::DrawSettings() 
@@ -99,33 +103,67 @@ void ProjectileIndicator::DrawSettings()
     ImGui::ColorEdit4("Color", reinterpret_cast<float*>(&color));
     ImGui::SliderInt("Display duration (ms)", &projectileTimer, 100, 4000);
 
-    ImGui::Text("Tracked skills:");
-    auto toErase = trackedSkills.end();
-    for (auto it = trackedSkills.begin(); it != trackedSkills.end(); ++it) {
-        ImGui::PushID(it - trackedSkills.begin());
-        ImGui::Bullet();
-        if (ImGui::Button("X", ImVec2(20, 20))) 
+    
+    {
+        ImGui::Text("Tracked skills:");
+        auto toErase = trackedSkills.end();
+        for (auto it = trackedSkills.begin(); it != trackedSkills.end(); ++it) 
         {
-            toErase = it;
+            ImGui::PushID(it - trackedSkills.begin());
+            ImGui::Bullet();
+            if (ImGui::Button("X", ImVec2(20, 20)))toErase = it;
+            ImGui::SameLine();
+            ImGui::Text(getSkillName(*it).c_str());
+            ImGui::SameLine();
+            ImGui::PushItemWidth(100.f);
+            ImGui::InputInt("", reinterpret_cast<int*>(&*it), 0);
+            ImGui::PopItemWidth();
+            ImGui::PopID();
         }
-        ImGui::SameLine();
-        ImGui::Text(getSkillName(*it).c_str());
-        ImGui::SameLine();
-        ImGui::PushItemWidth(100.f);
-        ImGui::InputInt("", reinterpret_cast<int*>(&*it), 0);
-        ImGui::PopItemWidth();
-        ImGui::PopID();
-    }
-    if (toErase != trackedSkills.end()) 
-    {
-        trackedSkills.erase(toErase);
-    }
-    if (ImGui::Button("+"))
-    {
-        trackedSkills.push_back(GW::Constants::SkillID::No_Skill);
+        if (toErase != trackedSkills.end()) {
+            trackedSkills.erase(toErase);
+        }
+        if (ImGui::Button("+")) {
+            trackedSkills.push_back(GW::Constants::SkillID::No_Skill);
+        }
     }
 
-    ImGui::Text("Version 1.0. For new releases, feature requests and bug reports check out");
+    const auto& modelNames = getModelNames();
+    {
+        ImGui::Text("Tracked enemy models:");
+        if (trackedEnemyModels.empty()) {
+            ImGui::SameLine();
+            ImGui::Text("All");
+        }
+        auto toErase = trackedEnemyModels.end();
+        for (auto it = trackedEnemyModels.begin(); it != trackedEnemyModels.end(); ++it) 
+        {
+            ImGui::PushID(it - trackedEnemyModels.begin() + trackedSkills.size());
+            ImGui::Bullet();
+            if (ImGui::Button("X", ImVec2(20, 20))) toErase = it;
+            ImGui::SameLine();
+            if (const auto modelIt = modelNames.find((uint16_t)*it); modelIt != modelNames.end()) {
+                ImGui::Text(modelIt->second.data());
+                ImGui::SameLine();
+            }
+            ImGui::PushItemWidth(100.f);
+            ImGui::InputInt("", &*it, 0);
+            ImGui::PopItemWidth();
+            ImGui::PopID();
+        }
+        if (toErase != trackedEnemyModels.end()) 
+        {
+            trackedEnemyModels.erase(toErase);
+        }
+        ImGui::PushID(trackedSkills.size() + trackedEnemyModels.size());
+        if (ImGui::Button("+")) 
+        {
+            trackedEnemyModels.push_back(0);
+        }
+        ImGui::PopID();
+    }
+
+    ImGui::Text("Version 1.1. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
     ImGui::TextColored(ImColor{102, 187, 238, 255}, discordInviteLink);
@@ -143,20 +181,24 @@ void ProjectileIndicator::LoadSettings(const wchar_t* folder)
         color.z = (float)ini.GetDoubleValue(Name(), (varName + "z").c_str(), color.z);
         color.w = (float)ini.GetDoubleValue(Name(), (varName + "w").c_str(), color.w);
     };
-    loadColor(color, VAR_NAME(color));
+    const auto split = [](std::string_view input, auto type)
+    {
+        std::vector<decltype(type)> result;
+        std::istringstream iss(std::string{input});
+        std::string item;
+        while (std::getline(iss, item, ' ')) 
+        {
+            result.push_back((decltype(type))std::stoi(item));
+        }
+        return result;
+    };
 
+    loadColor(color, VAR_NAME(color));
     filled = ini.GetBoolValue(Name(), VAR_NAME(filled), filled);
     projectileTimer = ini.GetLongValue(Name(), VAR_NAME(projectileTimer), projectileTimer);
 
-    const auto importedSkills = std::string{ini.GetValue(Name(), "skills", "")};
-    std::istringstream iss(importedSkills);
-    std::string item;
-    trackedSkills.clear();
-    while (std::getline(iss, item, ' '))
-    {
-        trackedSkills.push_back((GW::Constants::SkillID)std::stoi(item));
-    }
-    
+    trackedSkills = split(ini.GetValue(Name(), "skills", ""), GW::Constants::SkillID{});
+    trackedEnemyModels = split(ini.GetValue(Name(), "models", ""), int{});
 }
 
 void ProjectileIndicator::SaveSettings(const wchar_t* folder)
@@ -179,6 +221,12 @@ void ProjectileIndicator::SaveSettings(const wchar_t* folder)
         skills += std::to_string((int)skill) + " ";
     }
     ini.SetValue(Name(), "skills", skills.c_str());
+
+    std::string models;
+    for (const auto& model : trackedEnemyModels) {
+        models += std::to_string(model) + " ";
+    }
+    ini.SetValue(Name(), "models", models.c_str());
 
     PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 }
