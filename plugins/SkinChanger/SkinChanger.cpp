@@ -27,6 +27,17 @@ namespace
     std::map<GW::Constants::BagType, std::vector<InventoryItem>> available_items;
     std::unordered_map<std::wstring, std::wstring> decodedNames;
 
+    std::string removeTextInBrackets(std::string str)
+    {
+        while (true)
+        {
+            const auto left = str.find('<');
+            if (left == std::string::npos) return str;
+            const auto right = str.find('>', left);
+            if (right == std::string::npos) return str;
+            str.erase(left, right + 1);
+        }
+    }
     std::string decode(const std::wstring& wstring) 
     {
         if (wstring.empty()) return "";
@@ -35,7 +46,7 @@ namespace
         {
             GW::GameThread::Enqueue([wstring, &decoded] { GW::UI::AsyncDecodeStr(wstring.c_str(), &decoded); });
         }
-        return PluginUtils::WStringToString(decoded);
+        return removeTextInBrackets(PluginUtils::WStringToString(decoded));
     }
 
     std::optional<int> toInt(std::string str)
@@ -114,6 +125,14 @@ namespace
         return result;
     }
 
+    bool compareMods(const std::vector<GW::ItemModifier>& vec, const GW::ItemModifier* ptr, size_t size) 
+    {
+        if (vec.size() != size) return false;
+        for (size_t i = 0; i < size; ++i)
+            if (vec[i].mod != ptr[i].mod) return false;
+        return true;
+    }
+
     void drawItemSelector(InventoryItem& inventoryItem) 
     {
         static bool needToFetchBagItems = false;
@@ -140,9 +159,9 @@ namespace
             // Encoded names are not serialized to avoid wstring headache (and maybe issues when the game updates). Find the name.
             forEachEquippableItem([&inventoryItem](const GW::Item* item) 
             {
-                if (item->model_id == inventoryItem.modelID && extractMods(item) == inventoryItem.modifiers) 
+                if (item->model_id == inventoryItem.modelID && compareMods(inventoryItem.modifiers, item->mod_struct, item->mod_struct_size)) 
                 {
-                    inventoryItem.encodedName = item->name_enc;
+                    inventoryItem.encodedName = item->single_item_name;
                     return true;
                 }
                 return false;
@@ -156,7 +175,7 @@ namespace
                 available_items.clear();
                 forEachEquippableItem([&](const GW::Item* item)
                 {
-                    available_items[item->bag->bag_type].push_back(InventoryItem{item->model_id, item->name_enc, extractMods(item)});
+                    available_items[item->bag->bag_type].push_back(InventoryItem{item->model_id, item->single_item_name, extractMods(item)});
                     return false;
                 });
                 needToFetchBagItems = false;
@@ -401,7 +420,7 @@ void SkinChanger::DrawSettings()
     ImGui::Text("Item changes are applied on instance load.");
     // -----------
 
-    ImGui::Text("Version 1.0-beta1. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.0-beta2. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
@@ -425,8 +444,9 @@ void SkinChanger::Update(float)
     mapChangeTriggered = false;
 
     forEachEquippableItem([&](GW::Item* item) {
-        const auto it = std::ranges::find_if(itemChanges, [&item](const auto& itemChange) {
-            return itemChange.item.modelID && itemChange.item.modelID == item->model_id && extractMods(item) == itemChange.item.modifiers;
+        const auto it = std::ranges::find_if(itemChanges, [&item](const auto& itemChange) 
+        {
+            return itemChange.item.modelID && itemChange.item.modelID == item->model_id && compareMods(itemChange.item.modifiers, item->mod_struct, item->mod_struct_size);
         });
 
         if (it != itemChanges.end()) 
