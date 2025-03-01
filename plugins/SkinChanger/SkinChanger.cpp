@@ -1,5 +1,7 @@
 #include "SkinChanger.h"
 
+#include <cstdint>
+
 #include <GWCA/GWCA.h>
 
 #include <GWCA/Constants/Constants.h>
@@ -8,6 +10,9 @@
 #include <GWCA/Managers/ItemMgr.h>
 #include <GWCA/Managers/UIMgr.h>
 #include <GWCA/Managers/StoCMgr.h>
+#include <GWCA/Managers/GameThreadMgr.h>
+#include <GWCA/Managers/MapMgr.h>
+#include <GWCA/Managers/AgentMgr.h>
 
 #include <GWCA/Utilities/Hook.h>
 #include <GWCA/Utilities/Hooker.h>
@@ -18,8 +23,7 @@
 
 namespace 
 {
-    GW::HookEntry InstanceLoadFile_Entry;
-
+    bool mapChangeTriggered = false;
     std::map<GW::Constants::BagType, std::vector<InventoryItem>> available_items;
     std::unordered_map<std::wstring, std::wstring> decodedNames;
 
@@ -27,7 +31,10 @@ namespace
     {
         if (wstring.empty()) return "";
         auto& decoded = decodedNames[wstring];
-        if (decoded.empty()) GW::UI::AsyncDecodeStr(wstring.c_str(), &decoded);
+        if (decoded.empty()) 
+        {
+            GW::GameThread::Enqueue([wstring, &decoded] { GW::UI::AsyncDecodeStr(wstring.c_str(), &decoded); });
+        }
         return PluginUtils::WStringToString(decoded);
     }
 
@@ -78,7 +85,8 @@ namespace
 
     void forEachEquippableItem(std::function<bool(GW::Item*)> func) 
     {
-        for (auto bagSlot = GW::Constants::Bag::Backpack; bagSlot <= GW::Constants::Bag::Equipment_Pack; bagSlot = (GW::Constants::Bag)((size_t)bagSlot + 1)) 
+        using GW::Constants::Bag;
+        for (auto bagSlot : {Bag::Backpack, Bag::Belt_Pouch, Bag::Bag_1, Bag::Bag_2, Bag::Equipment_Pack, Bag::Equipped_Items}) 
         {
             const auto bag = GW::Items::GetBag(bagSlot);
             if (!bag) continue;
@@ -181,6 +189,101 @@ namespace
             ImGui::EndPopup();
         }
     }
+
+    constexpr ImVec4 palette[] = {
+        {0.f, 0.f, 1.f, 0.f},       // Blue
+        {0.f, 0.75f, 0.f, 0.f},     // Green
+        {0.5f, 0.f, 0.5f, 0.f},     // Purple
+        {1.f, 0.f, 0.f, 0.f},       // Red
+        {1.f, 1.f, 0.f, 0.f},       // Yellow
+        {0.5f, 0.25f, 0.f, 0.f},    // Brown
+        {1.f, 0.65f, 0.f, 0.f},     // Orange
+        {0.75f, 0.75f, 0.75f, 0.f}, // Silver
+        {0.f, 0.f, 0.f, 0.f},       // Black
+        {0.5f, 0.5f, 0.5f, 0.f},    // Gray
+        {1.f, 1.f, 1.f, 0.f},       // White
+        {0.95f, 0.5f, 0.95f, 0.f},  // Pink
+    };
+    ImVec4 ImVec4FromDyeColor(GW::DyeColor color)
+    {
+        const uint32_t color_id = std::to_underlying(color) - std::to_underlying(GW::DyeColor::Blue);
+        switch (color) {
+            case GW::DyeColor::Blue:
+            case GW::DyeColor::Green:
+            case GW::DyeColor::Purple:
+            case GW::DyeColor::Red:
+            case GW::DyeColor::Yellow:
+            case GW::DyeColor::Brown:
+            case GW::DyeColor::Orange:
+            case GW::DyeColor::Silver:
+            case GW::DyeColor::Black:
+            case GW::DyeColor::Gray:
+            case GW::DyeColor::White:
+            case GW::DyeColor::Pink:
+                assert(color_id < _countof(palette));
+                return palette[color_id];
+            default:
+                return {};
+        }
+    }
+
+    GW::DyeColor DyeColorFromInt(size_t color)
+    {
+        const auto col = static_cast<GW::DyeColor>(color);
+        switch (col) {
+            case GW::DyeColor::Blue:
+            case GW::DyeColor::Green:
+            case GW::DyeColor::Purple:
+            case GW::DyeColor::Red:
+            case GW::DyeColor::Yellow:
+            case GW::DyeColor::Brown:
+            case GW::DyeColor::Orange:
+            case GW::DyeColor::Silver:
+            case GW::DyeColor::Black:
+            case GW::DyeColor::Gray:
+            case GW::DyeColor::White:
+            case GW::DyeColor::Pink:
+                return col;
+            default:
+                return GW::DyeColor::None;
+        }
+    }
+
+    bool drawDyePicker(const char* label, GW::DyeColor* color)
+    {
+        ImGui::PushID(label);
+
+        const ImVec4 current_color = ImVec4FromDyeColor(*color);
+
+        bool value_changed = false;
+        const char* label_display_end = ImGui::FindRenderedTextEnd(label);
+
+        if (ImGui::ColorButton("##ColorButton", current_color, *color == GW::DyeColor::None ? ImGuiColorEditFlags_AlphaPreview : 0)) {
+            ImGui::OpenPopup("picker");
+        }
+
+        if (ImGui::BeginPopup("picker")) {
+            if (label != label_display_end) {
+                ImGui::TextUnformatted(label, label_display_end);
+                ImGui::Separator();
+            }
+            size_t palette_index;
+            if (ImGui::ColorPalette("##picker", &palette_index, palette, _countof(palette), 7, ImGuiColorEditFlags_AlphaPreview)) {
+                if (palette_index < _countof(palette)) {
+                    *color = DyeColorFromInt(palette_index + static_cast<size_t>(GW::DyeColor::Blue));
+                }
+                else {
+                    *color = GW::DyeColor::None;
+                }
+                value_changed = true;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+
+        ImGui::PopID();
+        return value_changed;
+    }
 } // namespace
 
 DLLAPI ToolboxPlugin* ToolboxPluginInstance()
@@ -193,24 +296,24 @@ void SkinChanger::LoadSettings(const wchar_t* folder)
 {
     ToolboxPlugin::LoadSettings(folder);
     ini.LoadFile(GetSettingFile(folder).c_str());
-    std::string loadedItems = ini.GetValue(Name(), VAR_NAME(changedItems), "");
 
+    std::string loadedItems = ini.GetValue(Name(), VAR_NAME(itemChanges), "");
+    enableItemColoring = ini.GetBoolValue(Name(), VAR_NAME(enableItemColoring), enableItemColoring);
     if (loadedItems.empty()) return;
 
     std::stringstream ss{loadedItems};
 
     while (ss) 
     {
-        InventoryItem item;
-        std::string modelFileID;
+        ItemChange itemChange;
 
-        ss >> std::ws >> item.modelID >> std::ws;
+        ss >> std::ws >> itemChange.item.modelID >> std::ws;
 
         uint32_t readMod;
         while (ss && ss.peek() != 'S') 
         {
             ss >> readMod;
-            item.modifiers.push_back({readMod});
+            itemChange.item.modifiers.push_back({readMod});
             ss >> std::ws;
         }
         if (ss && ss.peek() == 'S')
@@ -219,9 +322,15 @@ void SkinChanger::LoadSettings(const wchar_t* folder)
             return;
 
         ss >> std::ws;
-        if (ss)
-            ss >> modelFileID;
-        changedItems.push_back(std::make_pair(item, modelFileID));
+        if (ss) ss >> itemChange.modelFileID;
+
+        int readDye;
+        for (auto& dye : itemChange.dyes) 
+        {
+            ss >> readDye;
+            dye = (GW::DyeColor)(readDye);
+        }
+        itemChanges.push_back(itemChange);
     }
 }
 
@@ -231,18 +340,21 @@ void SkinChanger::SaveSettings(const wchar_t* folder)
     
     std::string itemsToSave;
     itemsToSave.reserve(4096);
-    for (const auto& [item, modelFileID] : changedItems) 
+    for (const auto& itemChange : itemChanges) 
     {
-        itemsToSave += std::to_string(item.modelID) + " ";
-        for (const auto& mod : item.modifiers) 
+        itemsToSave += std::to_string(itemChange.item.modelID) + " ";
+        for (const auto& mod : itemChange.item.modifiers) 
         {
             itemsToSave += std::to_string(mod.mod) + " ";
         }
         itemsToSave += "S ";
-        itemsToSave += modelFileID + " ";
+        itemsToSave += itemChange.modelFileID + " ";
+        for (const auto& dye : itemChange.dyes)
+            itemsToSave += std::to_string((int)dye) + " ";
     }
 
-    ini.SetValue(Name(), VAR_NAME(changedItems), itemsToSave.c_str());
+    ini.SetValue(Name(), VAR_NAME(itemChanges), itemsToSave.c_str());
+    ini.SetBoolValue(Name(), VAR_NAME(enableItemColoring), enableItemColoring);
     PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 }
 
@@ -252,31 +364,44 @@ void SkinChanger::DrawSettings()
 
     int index = 0;
     std::optional<int> indexToDelete;
-    for (auto& [item, fileID] : changedItems) {
+    for (auto& itemChange : itemChanges) {
         ImGui::PushID(index++);
 
         if (ImGui::Button("X")) indexToDelete = index - 1;
         ImGui::SameLine();
 
-        drawItemSelector(item);
+        drawItemSelector(itemChange.item);
         ImGui::SameLine();
        
-        ImGui::PushItemWidth(150.f);
-        ImGui::InputText("", &fileID);
-        std::erase_if(fileID, [](auto c){return std::isspace(c);});
+        ImGui::PushItemWidth(100.f);
+        ImGui::InputText("", &itemChange.modelFileID);
+        std::erase_if(itemChange.modelFileID, [](auto c){return std::isspace(c);});
         ImGui::PopItemWidth();
+
+        if (enableItemColoring) {
+            ImGui::SameLine();
+            drawDyePicker("Dye 1", &itemChange.dyes[0]);
+            ImGui::SameLine();
+            drawDyePicker("Dye 2", &itemChange.dyes[1]);
+            ImGui::SameLine();
+            drawDyePicker("Dye 3", &itemChange.dyes[2]);
+            ImGui::SameLine();
+            drawDyePicker("Dye 4", &itemChange.dyes[3]);
+        }
 
         ImGui::PopID();
     }
     if (ImGui::Button("+")) 
     {
-        changedItems.push_back(std::make_pair(InventoryItem{}, "0x"));
+        itemChanges.push_back({{}, "0x", {GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None}});
     }
-    if (indexToDelete) changedItems.erase(changedItems.begin() + *indexToDelete);
+    if (indexToDelete) itemChanges.erase(itemChanges.begin() + *indexToDelete);
 
+    ImGui::Checkbox("Enable dyes", &enableItemColoring);
+    ImGui::Text("Item changes are applied on instance load.");
     // -----------
 
-    ImGui::Text("Version 1.0. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.0-beta1. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
@@ -286,25 +411,46 @@ void SkinChanger::DrawSettings()
     }
 }
 
+void SkinChanger::Update(float)
+{
+    if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading)
+    {
+        mapChangeTriggered = true;
+        return;
+    }
+    if (!mapChangeTriggered || GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading || !GW::Map::GetIsMapLoaded() || GW::Map::GetIsObserving()) 
+    {
+        return;
+    }
+    mapChangeTriggered = false;
+
+    forEachEquippableItem([&](GW::Item* item) {
+        const auto it = std::ranges::find_if(itemChanges, [&item](const auto& itemChange) {
+            return itemChange.item.modelID && itemChange.item.modelID == item->model_id && extractMods(item) == itemChange.item.modifiers;
+        });
+
+        if (it != itemChanges.end()) 
+        {
+            if (const auto modelFileID = toInt(it->modelFileID); modelFileID && modelFileID.value() != 0) 
+            {
+                item->model_file_id = *modelFileID;
+            }
+            if (enableItemColoring) 
+            {
+                item->dye.dye1 = it->dyes[0];
+                item->dye.dye2 = it->dyes[1];
+                item->dye.dye3 = it->dyes[2];
+                item->dye.dye4 = it->dyes[3];
+            }
+        }
+        return false;
+    });
+}
+
 void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMODULE toolbox_dll)
 {
     ToolboxPlugin::Initialize(ctx, allocator_fns, toolbox_dll);
     GW::Initialize();
-
-    GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::InstanceLoadFile*)
-    {
-        forEachEquippableItem([&](GW::Item* item) {
-            const auto it = std::ranges::find_if(changedItems, [&item](const auto& changedItem) {
-                return changedItem.first.modelID && changedItem.first.modelID == item->model_id && extractMods(item) == changedItem.first.modifiers;
-            });
-
-            if (it != changedItems.end()) {
-                const auto modelFileID = toInt(it->second);
-                if (modelFileID && modelFileID.value() != 0) item->model_file_id = *modelFileID;
-            }
-            return false;
-        });
-    });
 }
 
 bool SkinChanger::CanTerminate()

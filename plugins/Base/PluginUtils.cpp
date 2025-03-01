@@ -910,4 +910,36 @@ namespace ImGui // Copied from https://github.com/ocornut/imgui/tree/master/misc
             ImGui::SetTooltip("%s", help);
         }
     }
+    bool ColorPalette(const char* label, size_t* palette_index, const ImVec4* palette, const size_t count, const size_t max_per_line, const ImGuiColorEditFlags flags)
+    {
+        PushID(label);
+        BeginGroup();
+
+        bool value_changed = false;
+        for (size_t i = 0; i < count; i++) {
+            PushID(i);
+            if (ColorButton("", palette[i])) {
+                *palette_index = i;
+                value_changed = true;
+            }
+            PopID();
+            if ((i + 1) % max_per_line != 0) {
+                SameLine();
+            }
+        }
+
+        if (flags & ImGuiColorEditFlags_AlphaPreview) {
+            constexpr ImVec4 col;
+            PushID(count);
+            if (ColorButton("", col, ImGuiColorEditFlags_AlphaPreview)) {
+                *palette_index = count;
+                value_changed = true;
+            }
+            PopID();
+        }
+
+        EndGroup();
+        PopID();
+        return value_changed;
+    }
 } // namespace ImGui
