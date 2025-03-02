@@ -12,19 +12,21 @@
 #include <GWCA/Managers/StoCMgr.h>
 #include <GWCA/Managers/GameThreadMgr.h>
 #include <GWCA/Managers/MapMgr.h>
+#include <GWCA/Managers/ChatMgr.h>
 #include <GWCA/Managers/AgentMgr.h>
 
 #include <GWCA/Utilities/Hook.h>
 #include <GWCA/Utilities/Hooker.h>
 
 #include "PluginUtils.h"
+#include "BackupManager.h"
 
 #include <sstream>
 
 namespace 
 {
     bool mapChangeTriggered = false;
-    std::map<GW::Constants::BagType, std::vector<InventoryItem>> available_items;
+    std::map<GW::Constants::Bag, std::vector<InventoryItem>> available_items;
     std::unordered_map<std::wstring, std::wstring> decodedNames;
 
     std::string removeTextInBrackets(std::string str)
@@ -140,7 +142,7 @@ namespace
 
         if (ImGui::Button("Edit item")) {
             needToFetchBagItems = true;
-            ImGui::OpenPopup("Choose item to equip");
+            ImGui::OpenPopup("Choose item to adjust");
         }
         ImGui::SameLine();
 
@@ -168,14 +170,15 @@ namespace
             });
         }
         
-        if (ImGui::BeginPopupModal("Choose item to equip", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) 
+        if (ImGui::BeginPopupModal("Choose item to adjust", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) 
         {
             if (needToFetchBagItems) 
             {
                 available_items.clear();
                 forEachEquippableItem([&](const GW::Item* item)
                 {
-                    available_items[item->bag->bag_type].push_back(InventoryItem{item->model_id, item->single_item_name, extractMods(item)});
+                    const auto bag = item->bag ? item->bag->bag_id() : GW::Constants::Bag::Backpack;
+                    available_items[bag].push_back(InventoryItem{item->model_id, item->single_item_name, extractMods(item)});
                     return false;
                 });
                 needToFetchBagItems = false;
@@ -184,7 +187,7 @@ namespace
             ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0);
             for (auto& [bag, bagItems] : available_items) 
             {
-                ImGui::TextUnformatted(bags[(uint32_t)bag]);
+                ImGui::TextUnformatted(bag == GW::Constants::Bag::Equipped_Items ? "Equipped items" : bags[(uint32_t)bag]);
                 ImGui::Indent();
                 for (auto& bagItem : bagItems) 
                 {
@@ -314,42 +317,13 @@ DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 void SkinChanger::LoadSettings(const wchar_t* folder)
 {
     ToolboxPlugin::LoadSettings(folder);
-    ini.LoadFile(GetSettingFile(folder).c_str());
+    BackupManager::getInstance().initialize(folder);
 
-    std::string loadedItems = ini.GetValue(Name(), VAR_NAME(itemChanges), "");
-    enableItemColoring = ini.GetBoolValue(Name(), VAR_NAME(enableItemColoring), enableItemColoring);
-    if (loadedItems.empty()) return;
+    loadFromIniFile(GetSettingFile(folder).c_str());
 
-    std::stringstream ss{loadedItems};
-
-    while (ss) 
+    if (itemChanges.empty() && BackupManager::getInstance().backupCount(PluginUtils::StringToWString(Name())) > 0)
     {
-        ItemChange itemChange;
-
-        ss >> std::ws >> itemChange.item.modelID >> std::ws;
-
-        uint32_t readMod;
-        while (ss && ss.peek() != 'S') 
-        {
-            ss >> readMod;
-            itemChange.item.modifiers.push_back({readMod});
-            ss >> std::ws;
-        }
-        if (ss && ss.peek() == 'S')
-            ss.get();
-        else
-            return;
-
-        ss >> std::ws;
-        if (ss) ss >> itemChange.modelFileID;
-
-        int readDye;
-        for (auto& dye : itemChange.dyes) 
-        {
-            ss >> readDye;
-            dye = (GW::DyeColor)(readDye);
-        }
-        itemChanges.push_back(itemChange);
+        PluginUtils::logMessage("No runs loaded, but automatic backups found. Type \"/restore " + std::string{Name()} + " help\" to see options for restoring backups", Name());
     }
 }
 
@@ -370,16 +344,25 @@ void SkinChanger::SaveSettings(const wchar_t* folder)
         itemsToSave += itemChange.modelFileID + " ";
         for (const auto& dye : itemChange.dyes)
             itemsToSave += std::to_string((int)dye) + " ";
+        itemsToSave += std::to_string(itemChange.tint) + " ";
+        itemsToSave += std::to_string((int)itemChange.enableDyes) + " ";
+        itemsToSave += "END ";
     }
 
     ini.SetValue(Name(), VAR_NAME(itemChanges), itemsToSave.c_str());
-    ini.SetBoolValue(Name(), VAR_NAME(enableItemColoring), enableItemColoring);
     PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
+
+    if (itemChanges.size()) BackupManager::getInstance().save(PluginUtils::StringToWString(Name()), GetSettingFile(folder));
 }
 
 void SkinChanger::DrawSettings()
 {
     ToolboxPlugin::DrawSettings();
+
+    if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading || !GW::Agents::GetControlledCharacter()) 
+    {
+        return;
+    }
 
     int index = 0;
     std::optional<int> indexToDelete;
@@ -392,12 +375,24 @@ void SkinChanger::DrawSettings()
         drawItemSelector(itemChange.item);
         ImGui::SameLine();
        
-        ImGui::PushItemWidth(100.f);
+        ImGui::PushItemWidth(80.f);
         ImGui::InputText("", &itemChange.modelFileID);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Model file ID");
+        }
         std::erase_if(itemChange.modelFileID, [](auto c){return std::isspace(c);});
         ImGui::PopItemWidth();
 
-        if (enableItemColoring) {
+        ImGui::SameLine();
+        ImGui::PushID(&itemChange.enableDyes);
+        ImGui::Checkbox("", &itemChange.enableDyes);
+        if (ImGui::IsItemHovered()) 
+        {
+            ImGui::SetTooltip("Enable dyes");
+        }
+        ImGui::PopID();
+
+        if (itemChange.enableDyes) {
             ImGui::SameLine();
             drawDyePicker("Dye 1", &itemChange.dyes[0]);
             ImGui::SameLine();
@@ -406,27 +401,84 @@ void SkinChanger::DrawSettings()
             drawDyePicker("Dye 3", &itemChange.dyes[2]);
             ImGui::SameLine();
             drawDyePicker("Dye 4", &itemChange.dyes[3]);
+            ImGui::SameLine();
+            int tint = itemChange.tint;
+            ImGui::PushItemWidth(50.f);
+            ImGui::InputInt("Tint (0-255)", &tint, 0);
+            ImGui::PopItemWidth();
+            if (tint < 0) tint = 0;
+            if (tint > 255) tint = 255;
+            itemChange.tint = (uint8_t)tint;
         }
 
         ImGui::PopID();
     }
     if (ImGui::Button("+")) 
     {
-        itemChanges.push_back({{}, "0x", {GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None}});
+        itemChanges.push_back({{}, "0x", false, {GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None}, 255});
     }
     if (indexToDelete) itemChanges.erase(itemChanges.begin() + *indexToDelete);
 
-    ImGui::Checkbox("Enable dyes", &enableItemColoring);
     ImGui::Text("Item changes are applied on instance load.");
+
     // -----------
 
-    ImGui::Text("Version 1.0-beta2. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.0. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
     ImGui::TextColored(ImColor{102, 187, 238, 255}, discordInviteLink);
     if (ImGui::IsItemClicked()) {
         ShellExecute(nullptr, "open", discordInviteLink, nullptr, nullptr, SW_SHOWNORMAL);
+    }
+}
+
+void SkinChanger::loadFromIniFile(const wchar_t* filePath)
+{
+    ini.LoadFile(filePath);
+    itemChanges.clear();
+
+    std::string loadedItems = ini.GetValue(Name(), VAR_NAME(itemChanges), "");
+    if (loadedItems.empty()) return;
+
+    std::stringstream ss{loadedItems};
+
+    while (ss) {
+        ItemChange itemChange;
+
+        ss >> std::ws >> itemChange.item.modelID >> std::ws;
+
+        uint32_t readMod;
+        while (ss && ss.peek() != 'S') {
+            ss >> readMod;
+            itemChange.item.modifiers.push_back({readMod});
+            ss >> std::ws;
+        }
+        if (ss && ss.peek() == 'S')
+            ss.get();
+        else
+            return;
+
+        ss >> std::ws;
+        if (ss) ss >> itemChange.modelFileID;
+
+        int readDye;
+        for (auto& dye : itemChange.dyes) {
+            ss >> readDye;
+            dye = (GW::DyeColor)(readDye);
+        }
+        {
+            // String stream for uint8_t does not what you would expect
+            int read;
+            ss >> read;
+            if (read >= 0 && read < 256) itemChange.tint = (uint8_t)read;
+        }
+        ss >> itemChange.enableDyes;
+
+        std::string read;
+        while (ss >> read && read != "END") {}
+
+        itemChanges.push_back(itemChange);
     }
 }
 
@@ -455,8 +507,9 @@ void SkinChanger::Update(float)
             {
                 item->model_file_id = *modelFileID;
             }
-            if (enableItemColoring) 
+            if (it->enableDyes) 
             {
+                item->dye.dye_tint = it->tint;
                 item->dye.dye1 = it->dyes[0];
                 item->dye.dye2 = it->dyes[1];
                 item->dye.dye3 = it->dyes[2];
@@ -471,6 +524,60 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
 {
     ToolboxPlugin::Initialize(ctx, allocator_fns, toolbox_dll);
     GW::Initialize();
+
+    GW::Chat::CreateCommand(L"restore", [](GW::HookStatus* status, const wchar_t*, const int argc, const LPWSTR* argv) {
+        const auto instance = static_cast<SkinChanger*>(ToolboxPluginInstance());
+        if (!instance || argc < 2) {
+            status->blocked = false;
+            return;
+        }
+        const auto arg1 = PluginUtils::ToLower(argv[1]);
+        const auto pluginName = PluginUtils::StringToWString(instance->Name());
+
+        std::filesystem::path iniToLoad;
+        if (arg1 != PluginUtils::ToLower(pluginName)) {
+            status->blocked = false;
+            return;
+        }
+        if (argc < 3 || PluginUtils::ToLower(argv[2]) == L"recent") {
+            PluginUtils::logMessage("Restore most recent backup", instance->Name());
+            iniToLoad = BackupManager::getInstance().load(pluginName, BackupManager::LoadType::Latest);
+        }
+        else if (PluginUtils::ToLower(argv[2]) == L"largest") {
+            PluginUtils::logMessage("Restore largest backup", instance->Name());
+            iniToLoad = BackupManager::getInstance().load(pluginName, BackupManager::LoadType::Largest);
+        }
+        else if (PluginUtils::ToLower(argv[2]) == L"list") {
+            PluginUtils::logMessage("Available backups:", instance->Name());
+            const auto paths = BackupManager::getInstance().list(pluginName);
+            for (const auto& path : paths) {
+                const auto name = path.filename().string().substr(0, 1);
+                const auto time = std::format("{:%Y-%m-%d %H:%M}", std::filesystem::last_write_time(path));
+                const auto size = std::filesystem::file_size(path);
+                PluginUtils::logMessage(std::format("Backup {}, Last change {}, File size {}", name, time, size), instance->Name());
+            }
+        }
+        else if (PluginUtils::ToLower(argv[2]) == L"help") {
+            PluginUtils::logMessage("Type \"/restore " + std::string{instance->Name()} + " recent\" to restore the most recent backup", instance->Name());
+            PluginUtils::logMessage("Type \"/restore " + std::string{instance->Name()} + " largest\" to restore the largest backup", instance->Name());
+            PluginUtils::logMessage("Type \"/restore " + std::string{instance->Name()} + " list\" to show the available backups", instance->Name());
+            PluginUtils::logMessage("Type \"/restore " + std::string{instance->Name()} + " $NUMBER\" to restore a specific backup", instance->Name());
+            PluginUtils::logMessage("Type \"/restore " + std::string{instance->Name()} + " help\" to show this menu", instance->Name());
+        }
+        else {
+            try {
+                const auto index = std::stoi(argv[2]);
+                PluginUtils::logMessage("Restore backup " + std::to_string(index), instance->Name());
+                iniToLoad = BackupManager::getInstance().load(pluginName, BackupManager::LoadType::Index, index);
+            } catch (...) {
+                status->blocked = false;
+                return;
+            }
+        }
+        if (!iniToLoad.empty()) {
+            instance->loadFromIniFile(iniToLoad.c_str());
+        }
+    });
 }
 
 bool SkinChanger::CanTerminate()

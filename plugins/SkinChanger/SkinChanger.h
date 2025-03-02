@@ -18,7 +18,10 @@ struct ItemChange
 {
     InventoryItem item;
     std::string modelFileID = "0x";
+
+    bool enableDyes = false;
     std::array<GW::DyeColor, 4> dyes;
+    uint8_t tint = 255;
 };
 
 class SkinChanger : public ToolboxPlugin {
@@ -42,6 +45,6 @@ public:
     void Terminate() override;
 
 private:
+    void loadFromIniFile(const wchar_t* filePath);
     std::vector<ItemChange> itemChanges;
-    bool enableItemColoring = false;
 };
