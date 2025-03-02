@@ -6,6 +6,8 @@
 
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/Packets/StoC.h>
+#include <GWCA/GameEntities/Agent.h>
+#include <GWCA/GameEntities/NPC.h>
 
 #include <GWCA/Managers/ItemMgr.h>
 #include <GWCA/Managers/UIMgr.h>
@@ -363,64 +365,90 @@ void SkinChanger::DrawSettings()
     {
         return;
     }
-
-    int index = 0;
-    std::optional<int> indexToDelete;
-    for (auto& itemChange : itemChanges) {
-        ImGui::PushID(index++);
-
-        if (ImGui::Button("X")) indexToDelete = index - 1;
-        ImGui::SameLine();
-
-        drawItemSelector(itemChange.item);
-        ImGui::SameLine();
-       
-        ImGui::PushItemWidth(80.f);
-        ImGui::InputText("", &itemChange.modelFileID);
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Model file ID");
-        }
-        std::erase_if(itemChange.modelFileID, [](auto c){return std::isspace(c);});
-        ImGui::PopItemWidth();
-
-        ImGui::SameLine();
-        ImGui::PushID(&itemChange.enableDyes);
-        ImGui::Checkbox("", &itemChange.enableDyes);
-        if (ImGui::IsItemHovered()) 
-        {
-            ImGui::SetTooltip("Enable dyes");
-        }
-        ImGui::PopID();
-
-        if (itemChange.enableDyes) {
-            ImGui::SameLine();
-            drawDyePicker("Dye 1", &itemChange.dyes[0]);
-            ImGui::SameLine();
-            drawDyePicker("Dye 2", &itemChange.dyes[1]);
-            ImGui::SameLine();
-            drawDyePicker("Dye 3", &itemChange.dyes[2]);
-            ImGui::SameLine();
-            drawDyePicker("Dye 4", &itemChange.dyes[3]);
-            ImGui::SameLine();
-            int tint = itemChange.tint;
-            ImGui::PushItemWidth(50.f);
-            ImGui::InputInt("Tint (0-255)", &tint, 0);
-            ImGui::PopItemWidth();
-            if (tint < 0) tint = 0;
-            if (tint > 255) tint = 255;
-            itemChange.tint = (uint8_t)tint;
-        }
-
-        ImGui::PopID();
-    }
-    if (ImGui::Button("+")) 
     {
-        itemChanges.push_back({{}, "0x", false, {GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None}, 255});
+        int index = 0;
+        std::optional<int> indexToDelete;
+        for (auto& itemChange : itemChanges) {
+            ImGui::PushID(index++);
+
+            if (ImGui::Button("X")) indexToDelete = index - 1;
+            ImGui::SameLine();
+
+            drawItemSelector(itemChange.item);
+            ImGui::SameLine();
+
+            ImGui::PushItemWidth(80.f);
+            ImGui::InputText("", &itemChange.modelFileID);
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Model file ID");
+            }
+            std::erase_if(itemChange.modelFileID, [](auto c) {
+                return std::isspace(c);
+            });
+            ImGui::PopItemWidth();
+
+            ImGui::SameLine();
+            ImGui::PushID(&itemChange.enableDyes);
+            ImGui::Checkbox("", &itemChange.enableDyes);
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Enable dyes");
+            }
+            ImGui::PopID();
+
+            if (itemChange.enableDyes) {
+                ImGui::SameLine();
+                drawDyePicker("Dye 1", &itemChange.dyes[0]);
+                ImGui::SameLine();
+                drawDyePicker("Dye 2", &itemChange.dyes[1]);
+                ImGui::SameLine();
+                drawDyePicker("Dye 3", &itemChange.dyes[2]);
+                ImGui::SameLine();
+                drawDyePicker("Dye 4", &itemChange.dyes[3]);
+                ImGui::SameLine();
+                int tint = itemChange.tint;
+                ImGui::PushItemWidth(50.f);
+                ImGui::InputInt("Tint (0-255)", &tint, 0);
+                ImGui::PopItemWidth();
+                if (tint < 0) tint = 0;
+                if (tint > 255) tint = 255;
+                itemChange.tint = (uint8_t)tint;
+            }
+
+            ImGui::PopID();
+        }
+        if (ImGui::Button("+")) {
+            itemChanges.push_back({{}, "0x", false, {GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None}, 255});
+        }
+        if (indexToDelete) itemChanges.erase(itemChanges.begin() + *indexToDelete);
+
+        ImGui::Text("Item changes are applied on instance load.");
     }
-    if (indexToDelete) itemChanges.erase(itemChanges.begin() + *indexToDelete);
 
-    ImGui::Text("Item changes are applied on instance load.");
+    // ----------------
+    {
+        ImGui::Text("Saved NPC transmogs. Write `/skinchanger save <name>` with a NPC as a target to add to this");
 
+        int index = 0;
+        std::optional<int> indexToDelete;
+        for (auto& npcTransmog : npcTransmogs) {
+            ImGui::PushID(index++ + itemChanges.size());
+
+            if (ImGui::Button("X")) indexToDelete = index - 1;
+            ImGui::SameLine();
+
+            ImGui::Text(npcTransmog.identifier.c_str());
+            ImGui::SameLine();
+
+            float scalePercent = (float)((double)npcTransmog.scale / 0x64000000);
+            ImGui::PushItemWidth(80.f);
+            ImGui::InputFloat("Scale", &scalePercent, 0.f);
+            ImGui::PopItemWidth();
+            npcTransmog.scale = (DWORD)(0x64000000 * scalePercent);
+
+            ImGui::PopID();
+        }
+        if (indexToDelete) npcTransmogs.erase(npcTransmogs.begin() + *indexToDelete);
+    }
     // -----------
 
     ImGui::Text("Version 1.0. For new releases, feature requests and bug reports check out");
@@ -576,6 +604,21 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
         }
         if (!iniToLoad.empty()) {
             instance->loadFromIniFile(iniToLoad.c_str());
+        }
+    });
+    GW::Chat::CreateCommand(L"skinchanger", [](GW::HookStatus*, const wchar_t*, const int argc, const LPWSTR* argv) 
+        {
+        const auto instance = static_cast<SkinChanger*>(ToolboxPluginInstance());
+        if (!instance || argc < 2) return;
+
+        const auto currentTarget = GW::Agents::GetTargetAsAgentLiving();
+        if (currentTarget && currentTarget->IsNPC() && argc >= 3 && PluginUtils::ToLower(argv[1]) == L"save") 
+        {
+            const auto npc = GW::Agents::GetNPCByID(currentTarget->player_number);
+            if (npc && npc->files_count) 
+            {
+                instance->npcTransmogs.push_back({PluginUtils::WStringToString(argv[2]), currentTarget->player_number, 0x64000000, npc->model_file_id, npc->model_files[0], npc->npc_flags});
+            }
         }
     });
 }

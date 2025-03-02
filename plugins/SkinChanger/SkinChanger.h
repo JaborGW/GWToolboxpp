@@ -24,6 +24,16 @@ struct ItemChange
     uint8_t tint = 255;
 };
 
+struct NpcTransmog 
+{
+    std::string identifier;
+    DWORD npc_id = 0;
+    DWORD scale = 0x64000000;
+    DWORD npc_model_file_id = 0;
+    DWORD npc_model_file_data = 0;
+    DWORD flags = 0;
+};
+
 class SkinChanger : public ToolboxPlugin {
 public:
     SkinChanger() {}
@@ -44,7 +54,8 @@ public:
     void SignalTerminate() override;
     void Terminate() override;
 
-private:
     void loadFromIniFile(const wchar_t* filePath);
+
     std::vector<ItemChange> itemChanges;
+    std::vector<NpcTransmog> npcTransmogs;
 };
