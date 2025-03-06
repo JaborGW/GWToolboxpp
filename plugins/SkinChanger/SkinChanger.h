@@ -47,8 +47,6 @@ public:
     void LoadSettings(const wchar_t*) override;
     void SaveSettings(const wchar_t*) override;
 
-    void Update(float) override;
-
     void Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMODULE toolbox_dll) override;
     bool CanTerminate() override;
     void SignalTerminate() override;

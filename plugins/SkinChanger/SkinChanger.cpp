@@ -27,7 +27,8 @@
 
 namespace 
 {
-    bool mapChangeTriggered = false;
+    GW::HookEntry InstanceLoadFile_Entry;
+
     std::map<GW::Constants::Bag, std::vector<InventoryItem>> available_items;
     std::unordered_map<std::wstring, std::wstring> decodedNames;
 
@@ -510,48 +511,32 @@ void SkinChanger::loadFromIniFile(const wchar_t* filePath)
     }
 }
 
-void SkinChanger::Update(float)
-{
-    if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading)
-    {
-        mapChangeTriggered = true;
-        return;
-    }
-    if (!mapChangeTriggered || GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading || !GW::Map::GetIsMapLoaded() || GW::Map::GetIsObserving()) 
-    {
-        return;
-    }
-    mapChangeTriggered = false;
-
-    forEachEquippableItem([&](GW::Item* item) {
-        const auto it = std::ranges::find_if(itemChanges, [&item](const auto& itemChange) 
-        {
-            return itemChange.item.modelID && itemChange.item.modelID == item->model_id && compareMods(itemChange.item.modifiers, item->mod_struct, item->mod_struct_size);
-        });
-
-        if (it != itemChanges.end()) 
-        {
-            if (const auto modelFileID = toInt(it->modelFileID); modelFileID && modelFileID.value() != 0) 
-            {
-                item->model_file_id = *modelFileID;
-            }
-            if (it->enableDyes) 
-            {
-                item->dye.dye_tint = it->tint;
-                item->dye.dye1 = it->dyes[0];
-                item->dye.dye2 = it->dyes[1];
-                item->dye.dye3 = it->dyes[2];
-                item->dye.dye4 = it->dyes[3];
-            }
-        }
-        return false;
-    });
-}
-
 void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMODULE toolbox_dll)
 {
     ToolboxPlugin::Initialize(ctx, allocator_fns, toolbox_dll);
     GW::Initialize();
+
+    GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::InstanceLoadFile*) {
+        forEachEquippableItem([&](GW::Item* item) {
+            const auto it = std::ranges::find_if(itemChanges, [&item](const auto& itemChange) {
+                return itemChange.item.modelID && itemChange.item.modelID == item->model_id && compareMods(itemChange.item.modifiers, item->mod_struct, item->mod_struct_size);
+            });
+
+            if (it != itemChanges.end()) {
+                if (const auto modelFileID = toInt(it->modelFileID); modelFileID && modelFileID.value() != 0) {
+                    item->model_file_id = *modelFileID;
+                }
+                if (it->enableDyes) {
+                    item->dye.dye_tint = it->tint;
+                    item->dye.dye1 = it->dyes[0];
+                    item->dye.dye2 = it->dyes[1];
+                    item->dye.dye3 = it->dyes[2];
+                    item->dye.dye4 = it->dyes[3];
+                }
+            }
+            return false;
+        });
+    });
 
     GW::Chat::CreateCommand(L"restore", [](GW::HookStatus* status, const wchar_t*, const int argc, const LPWSTR* argv) {
         const auto instance = static_cast<SkinChanger*>(ToolboxPluginInstance());
@@ -631,6 +616,7 @@ bool SkinChanger::CanTerminate()
 void SkinChanger::SignalTerminate()
 {
     ToolboxPlugin::SignalTerminate();
+    GW::StoC::RemovePostCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry);
     GW::DisableHooks();
 }
 
