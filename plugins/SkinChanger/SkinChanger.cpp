@@ -6,8 +6,12 @@
 
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/Packets/StoC.h>
+
 #include <GWCA/GameEntities/Agent.h>
 #include <GWCA/GameEntities/NPC.h>
+
+#include <GWCA/Context/GameContext.h>
+#include <GWCA/Context/WorldContext.h>
 
 #include <GWCA/Managers/ItemMgr.h>
 #include <GWCA/Managers/UIMgr.h>
@@ -27,10 +31,14 @@
 
 namespace 
 {
+    GW::HookEntry UseItem_Entry;
+    GW::HookEntry AgentAdd_Entry;
     GW::HookEntry InstanceLoadFile_Entry;
 
     std::map<GW::Constants::Bag, std::vector<InventoryItem>> available_items;
     std::unordered_map<std::wstring, std::wstring> decodedNames;
+
+    static std::optional<MinipetTransmog> pendingMinipetTransmog;
 
     std::string removeTextInBrackets(std::string str)
     {
@@ -99,7 +107,8 @@ namespace
         }
     }
 
-    void forEachEquippableItem(std::function<bool(GW::Item*)> func) 
+    enum class Behaviour { AllItems, EquippableOnly };
+    void forEachItem(std::function<bool(GW::Item*)> func, Behaviour behaviour) 
     {
         using GW::Constants::Bag;
         for (auto bagSlot : {Bag::Backpack, Bag::Belt_Pouch, Bag::Bag_1, Bag::Bag_2, Bag::Equipment_Pack, Bag::Equipped_Items}) 
@@ -110,10 +119,21 @@ namespace
             const auto& items = bag->items;
             for (size_t slot = 0; slot < items.size(); slot++) 
             {
-                const auto item = items[slot];
-                if (IsEquippable(items[slot])) 
+                const auto& item = items[slot];
+                switch (behaviour) 
                 {
-                    if (func(item)) return;
+                case Behaviour::AllItems:
+                    if (item) 
+                    {
+                        if (func(item)) return;
+                    }
+                    break;
+                case Behaviour::EquippableOnly:
+                    if (IsEquippable(item)) 
+                    {
+                        if (func(item)) return;
+                    }
+                    break;
                 }
             }
         }
@@ -162,7 +182,7 @@ namespace
         else 
         {
             // Encoded names are not serialized to avoid wstring headache (and maybe issues when the game updates). Find the name.
-            forEachEquippableItem([&inventoryItem](const GW::Item* item) 
+            forEachItem([&inventoryItem](const GW::Item* item) 
             {
                 if (item->model_id == inventoryItem.modelID && compareMods(inventoryItem.modifiers, item->mod_struct, item->mod_struct_size)) 
                 {
@@ -170,7 +190,7 @@ namespace
                     return true;
                 }
                 return false;
-            });
+            }, Behaviour::EquippableOnly);
         }
         
         if (ImGui::BeginPopupModal("Choose item to adjust", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) 
@@ -178,12 +198,12 @@ namespace
             if (needToFetchBagItems) 
             {
                 available_items.clear();
-                forEachEquippableItem([&](const GW::Item* item)
+                forEachItem([&](const GW::Item* item)
                 {
                     const auto bag = item->bag ? item->bag->bag_id() : GW::Constants::Bag::Backpack;
                     available_items[bag].push_back(InventoryItem{item->model_id, item->single_item_name, extractMods(item)});
                     return false;
-                });
+                }, Behaviour::EquippableOnly);
                 needToFetchBagItems = false;
             }
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
@@ -308,6 +328,72 @@ namespace
 
         ImGui::PopID();
         return value_changed;
+    }
+
+    void TransmoAgent(DWORD agent_id, MinipetTransmog&& transmo)
+    {
+        if (!transmo.npcID || !agent_id) {
+            return;
+        }
+        const auto agent = static_cast<GW::AgentLiving*>(GW::Agents::GetAgentByID(agent_id));
+        if (!agent || !agent->GetIsLivingType()) return;
+        const auto existingNpc = GW::Agents::GetNPCByID(agent->player_number);
+        const auto scale = existingNpc ? existingNpc->scale : 0x64000000;
+
+        const auto& npcs = GW::GetGameContext()->world->npcs;
+        if (transmo.npcID >= npcs.size() || !npcs[transmo.npcID].model_file_id) 
+        {
+            const auto& flags = transmo.flags;
+            if (!transmo.npcModelFileID) return;
+
+            // Need to create the NPC.
+            // Those 2 packets (P074 & P075) are used to create a new model, for instance if we want to "use" a tonic.
+            // We have to find the data that are in the NPC structure and feed them to those 2 packets.
+            GW::NPC npc = {0};
+            npc.model_file_id = transmo.npcModelFileID;
+            npc.npc_flags = flags;
+            npc.primary = 1;
+            npc.default_level = 0;
+            GW::GameThread::Enqueue([npcID = transmo.npcID, npc] {
+                GW::Packet::StoC::NpcGeneralStats packet{};
+                packet.npc_id = npcID;
+                packet.file_id = npc.model_file_id;
+                packet.data1 = 0;
+                packet.scale = npc.scale;
+                packet.data2 = 0;
+                packet.flags = npc.npc_flags;
+                packet.profession = npc.primary;
+                packet.level = npc.default_level;
+                packet.name[0] = 0;
+                GW::StoC::EmulatePacket(&packet);
+            });
+
+            if (transmo.npcModelFileData) 
+            {
+                GW::GameThread::Enqueue([npcID = transmo.npcID, npcModelFileData = transmo.npcModelFileData] {
+                    GW::Packet::StoC::NPCModelFile packet;
+                    packet.npc_id = npcID;
+                    packet.count = 1;
+                    packet.data[0] = npcModelFileData;
+
+                    GW::StoC::EmulatePacket(&packet);
+                });
+            }
+        }
+        GW::GameThread::Enqueue([npcID = transmo.npcID, agent_id, scale] 
+        {
+            GW::Packet::StoC::AgentScale packet1;
+            packet1.header = GW::Packet::StoC::AgentScale::STATIC_HEADER;
+            packet1.agent_id = agent_id;
+            packet1.scale = scale;
+            GW::StoC::EmulatePacket(&packet1);
+
+            GW::Packet::StoC::AgentModel packet2;
+            packet2.header = GW::Packet::StoC::AgentModel::STATIC_HEADER;
+            packet2.agent_id = agent_id;
+            packet2.model_id = npcID;
+            GW::StoC::EmulatePacket(&packet2);
+        });
     }
 } // namespace
 
@@ -516,9 +602,13 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
     ToolboxPlugin::Initialize(ctx, allocator_fns, toolbox_dll);
     GW::Initialize();
 
+    minipetTransmogs.push_back(MinipetTransmog{36651, 350, 0x564EB, 12, 0x3d67, 0x40d97, 98820});
+
     GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::InstanceLoadFile*) {
-        forEachEquippableItem([&](GW::Item* item) {
-            const auto it = std::ranges::find_if(itemChanges, [&item](const auto& itemChange) {
+        forEachItem([&](GW::Item* item) 
+        {
+            const auto it = std::ranges::find_if(itemChanges, [&item](const auto& itemChange) 
+            {
                 return itemChange.item.modelID && itemChange.item.modelID == item->model_id && compareMods(itemChange.item.modifiers, item->mod_struct, item->mod_struct_size);
             });
 
@@ -535,7 +625,21 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
                 }
             }
             return false;
-        });
+        }, Behaviour::EquippableOnly);
+
+        forEachItem([&](GW::Item* item) 
+        {
+            const auto it = std::ranges::find_if(minipetTransmogs, [&item](const auto& minipetTransmog) 
+            {
+                return minipetTransmog.itemToReplaceModelID && item->model_id == minipetTransmog.itemToReplaceModelID;
+            });
+
+            if (it != minipetTransmogs.end()) 
+            {
+                item->model_file_id = it->replacementItemModelFileID;
+            }
+            return false;
+        }, Behaviour::AllItems);
     });
 
     GW::Chat::CreateCommand(L"restore", [](GW::HookStatus* status, const wchar_t*, const int argc, const LPWSTR* argv) {
@@ -605,6 +709,32 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
                 instance->npcTransmogs.push_back({PluginUtils::WStringToString(argv[2]), currentTarget->player_number, 0x64000000, npc->model_file_id, npc->model_files[0], npc->npc_flags});
             }
         }
+    });
+
+    RegisterUIMessageCallback(&UseItem_Entry, GW::UI::UIMessage::kSendUseItem, [&](GW::HookStatus*, GW::UI::UIMessage, void* wparam, void*) {
+        if (!wparam) return;
+
+        const auto item = GW::Items::GetItemById((uint32_t)wparam);
+        if (!item) return;
+
+        for (const auto& minipetTransmog : minipetTransmogs) 
+        {
+            if (item->model_id == minipetTransmog.itemToReplaceModelID) 
+            {
+                pendingMinipetTransmog = minipetTransmog;
+                return;
+            }
+        }
+    });
+
+    GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::AgentAdd>(&AgentAdd_Entry, [&](GW::HookStatus*, const GW::Packet::StoC::AgentAdd* packet) {
+        if (!pendingMinipetTransmog) return;
+        const auto agent = GW::Agents::GetAgentByID(packet->agent_id);
+        if (!agent || !agent->GetIsLivingType()) return;
+        if (agent->GetAsAgentLiving()->player_number != pendingMinipetTransmog->agentToReplaceModelID) return;
+
+        TransmoAgent(agent->agent_id, std::move(*pendingMinipetTransmog));
+        pendingMinipetTransmog = std::nullopt;
     });
 }
 

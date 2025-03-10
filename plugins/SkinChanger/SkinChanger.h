@@ -34,6 +34,19 @@ struct NpcTransmog
     DWORD flags = 0;
 };
 
+struct MinipetTransmog 
+{
+    DWORD itemToReplaceModelID = 0;
+    DWORD agentToReplaceModelID = 0;
+    DWORD replacementItemModelFileID = 0;
+
+    // Agent transmo model information
+    DWORD npcID = 0;
+    DWORD npcModelFileID = 0;
+    DWORD npcModelFileData = 0;
+    DWORD flags = 0;
+};
+
 class SkinChanger : public ToolboxPlugin {
 public:
     SkinChanger() {}
@@ -56,4 +69,5 @@ public:
 
     std::vector<ItemChange> itemChanges;
     std::vector<NpcTransmog> npcTransmogs;
+    std::vector<MinipetTransmog> minipetTransmogs;
 };
