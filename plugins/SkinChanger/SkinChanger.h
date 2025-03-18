@@ -26,25 +26,20 @@ struct ItemChange
 
 struct NpcTransmog 
 {
-    std::string identifier;
-    DWORD npc_id = 0;
-    DWORD scale = 0x64000000;
-    DWORD npc_model_file_id = 0;
-    DWORD npc_model_file_data = 0;
-    DWORD flags = 0;
+    int npcID = 0;
+    std::string npcModelFileID = "0x";
+    std::string npcModelFileData = "0x";
+    std::string flags = "0x";
 };
 
 struct MinipetTransmog 
 {
-    DWORD itemToReplaceModelID = 0;
-    DWORD agentToReplaceModelID = 0;
-    DWORD replacementItemModelFileID = 0;
+    int itemToReplaceModelID = 0;
+    int agentToReplaceModelID = 0;
+    std::string replacementItemModelFileID = "0x";
 
     // Agent transmo model information
-    DWORD npcID = 0;
-    DWORD npcModelFileID = 0;
-    DWORD npcModelFileData = 0;
-    DWORD flags = 0;
+    NpcTransmog npcTransmog;
 };
 
 class SkinChanger : public ToolboxPlugin {

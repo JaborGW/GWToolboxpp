@@ -330,28 +330,29 @@ namespace
         return value_changed;
     }
 
-    void TransmoAgent(DWORD agent_id, MinipetTransmog&& transmo)
+    void TransmoAgent(DWORD agent_id, NpcTransmog transmo)
     {
-        if (!transmo.npcID || !agent_id) {
+        PluginUtils::logMessage("Transmo Agent", "DBG");
+        if (!transmo.npcID || !agent_id)
             return;
-        }
+
+        const auto npcModelFileID = toInt(transmo.npcModelFileID);
+        const auto npcModelFileData = toInt(transmo.npcModelFileData);
+        const auto flags = toInt(transmo.flags);
+        if (!npcModelFileID || !npcModelFileData || !flags || npcModelFileID == 0 || npcModelFileData == 0 || flags == 0) 
+            return;
+
         const auto agent = static_cast<GW::AgentLiving*>(GW::Agents::GetAgentByID(agent_id));
         if (!agent || !agent->GetIsLivingType()) return;
         const auto existingNpc = GW::Agents::GetNPCByID(agent->player_number);
-        const auto scale = existingNpc ? existingNpc->scale : 0x64000000;
+        const auto scale = existingNpc ? existingNpc->scale : 0x23000000;
 
         const auto& npcs = GW::GetGameContext()->world->npcs;
-        if (transmo.npcID >= npcs.size() || !npcs[transmo.npcID].model_file_id) 
+        if (transmo.npcID >= (int)npcs.size() || !npcs[transmo.npcID].model_file_id) 
         {
-            const auto& flags = transmo.flags;
-            if (!transmo.npcModelFileID) return;
-
-            // Need to create the NPC.
-            // Those 2 packets (P074 & P075) are used to create a new model, for instance if we want to "use" a tonic.
-            // We have to find the data that are in the NPC structure and feed them to those 2 packets.
             GW::NPC npc = {0};
-            npc.model_file_id = transmo.npcModelFileID;
-            npc.npc_flags = flags;
+            npc.model_file_id = *npcModelFileID;
+            npc.npc_flags = *flags;
             npc.primary = 1;
             npc.default_level = 0;
             GW::GameThread::Enqueue([npcID = transmo.npcID, npc] {
@@ -368,18 +369,17 @@ namespace
                 GW::StoC::EmulatePacket(&packet);
             });
 
-            if (transmo.npcModelFileData) 
-            {
-                GW::GameThread::Enqueue([npcID = transmo.npcID, npcModelFileData = transmo.npcModelFileData] {
-                    GW::Packet::StoC::NPCModelFile packet;
-                    packet.npc_id = npcID;
-                    packet.count = 1;
-                    packet.data[0] = npcModelFileData;
+            GW::GameThread::Enqueue([npcID = transmo.npcID, npcModelFileData = *npcModelFileData] {
+                GW::Packet::StoC::NPCModelFile packet;
+                packet.npc_id = npcID;
+                packet.count = 1;
+                packet.data[0] = npcModelFileData;
 
-                    GW::StoC::EmulatePacket(&packet);
-                });
-            }
+                GW::StoC::EmulatePacket(&packet);
+            });
         }
+
+        PluginUtils::logMessage("Transmo Agent Send packet", "DBG");
         GW::GameThread::Enqueue([npcID = transmo.npcID, agent_id, scale] 
         {
             GW::Packet::StoC::AgentScale packet1;
@@ -394,6 +394,65 @@ namespace
             packet2.model_id = npcID;
             GW::StoC::EmulatePacket(&packet2);
         });
+    }
+
+    void drawNpcSelector(NpcTransmog& npcTransmog)
+    {
+        ImGui::PushItemWidth(70.f);
+
+        ImGui::PushID(0);
+        ImGui::InputInt("", &npcTransmog.npcID, 0);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Desired NPC ID");
+        ImGui::PopID();
+        ImGui::SameLine();
+
+        ImGui::PushID(1);
+        ImGui::InputText("", &npcTransmog.npcModelFileID);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Desired NPC Model File ID");
+        ImGui::PopID();
+        ImGui::SameLine();
+
+        ImGui::PushID(2);
+        ImGui::InputText("", &npcTransmog.npcModelFileData);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Desired NPC Model File");
+        ImGui::PopID();
+        ImGui::SameLine();
+
+        ImGui::PushID(3);
+        ImGui::InputText("", &npcTransmog.flags);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Desired NPC flags");
+        ImGui::PopID();
+
+        ImGui::PopItemWidth();
+    }
+
+    void drawMinipetSelector(MinipetTransmog& minipetTransmog) 
+    {
+        ImGui::PushItemWidth(70.f);
+        ImGui::PushID(0);
+        ImGui::InputInt("", &minipetTransmog.agentToReplaceModelID, 0);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Agent model ID");
+        ImGui::PopID();
+        ImGui::SameLine();
+
+        ImGui::PushID(1);
+        ImGui::InputInt("", &minipetTransmog.itemToReplaceModelID, 0);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Item model ID");
+        ImGui::PopID();
+        ImGui::SameLine();
+
+        ImGui::PushID(2);
+        ImGui::InputText("", &minipetTransmog.replacementItemModelFileID);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Desired item model file ID");
+        ImGui::PopID();
+        ImGui::SameLine();
+
+        ImGui::PushID(3);
+        drawNpcSelector(minipetTransmog.npcTransmog);
+        ImGui::PopID();
+        ImGui::SameLine();
+
+        ImGui::PopItemWidth();
     }
 } // namespace
 
@@ -503,9 +562,7 @@ void SkinChanger::DrawSettings()
 
             ImGui::PopID();
         }
-        if (ImGui::Button("+")) {
-            itemChanges.push_back({{}, "0x", false, {GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None}, 255});
-        }
+        if (ImGui::Button("+")) itemChanges.push_back({{}, "0x", false, {GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None, GW::DyeColor::None}, 255});
         if (indexToDelete) itemChanges.erase(itemChanges.begin() + *indexToDelete);
 
         ImGui::Text("Item changes are applied on instance load.");
@@ -513,8 +570,6 @@ void SkinChanger::DrawSettings()
 
     // ----------------
     {
-        ImGui::Text("Saved NPC transmogs. Write `/skinchanger save <name>` with a NPC as a target to add to this");
-
         int index = 0;
         std::optional<int> indexToDelete;
         for (auto& npcTransmog : npcTransmogs) {
@@ -523,22 +578,35 @@ void SkinChanger::DrawSettings()
             if (ImGui::Button("X")) indexToDelete = index - 1;
             ImGui::SameLine();
 
-            ImGui::Text(npcTransmog.identifier.c_str());
-            ImGui::SameLine();
-
-            float scalePercent = (float)((double)npcTransmog.scale / 0x64000000);
-            ImGui::PushItemWidth(80.f);
-            ImGui::InputFloat("Scale", &scalePercent, 0.f);
-            ImGui::PopItemWidth();
-            npcTransmog.scale = (DWORD)(0x64000000 * scalePercent);
+            drawNpcSelector(npcTransmog);
 
             ImGui::PopID();
         }
+        ImGui::PushID(&npcTransmogs);
+        if (ImGui::Button("+")) npcTransmogs.push_back({});
+        ImGui::PopID();
         if (indexToDelete) npcTransmogs.erase(npcTransmogs.begin() + *indexToDelete);
     }
     // -----------
+    {
+        int index = 0;
+        std::optional<int> indexToDelete;
+        for (auto& minipetTransmog : minipetTransmogs) {
+            ImGui::PushID(index++ + itemChanges.size() + npcTransmogs.size());
 
-    ImGui::Text("Version 1.0. For new releases, feature requests and bug reports check out");
+            if (ImGui::Button("X")) indexToDelete = index - 1;
+            ImGui::SameLine();
+            drawMinipetSelector(minipetTransmog);
+            ImGui::PopID();
+        }
+        ImGui::PushID(&minipetTransmogs);
+        if (ImGui::Button("+")) minipetTransmogs.push_back({});
+        ImGui::PopID();
+        if (indexToDelete) minipetTransmogs.erase(minipetTransmogs.begin() + *indexToDelete);
+    }
+    //
+
+    ImGui::Text("Version 1.1. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
@@ -602,7 +670,8 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
     ToolboxPlugin::Initialize(ctx, allocator_fns, toolbox_dll);
     GW::Initialize();
 
-    minipetTransmogs.push_back(MinipetTransmog{36651, 350, 0x564EB, 12, 0x3d67, 0x40d97, 98820});
+    // minipetTransmogs.push_back(MinipetTransmog{36651, 350, 0x564EB, 12, 0x3d67, 0x40d97, 98820});
+    minipetTransmogs.push_back(MinipetTransmog{36651, 350, "0x564EB", 12, "0x3d67", "0x40d97", "0x18204"});
 
     GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::InstanceLoadFile*) {
         forEachItem([&](GW::Item* item) 
@@ -631,16 +700,24 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
         {
             const auto it = std::ranges::find_if(minipetTransmogs, [&item](const auto& minipetTransmog) 
             {
-                return minipetTransmog.itemToReplaceModelID && item->model_id == minipetTransmog.itemToReplaceModelID;
+                return minipetTransmog.itemToReplaceModelID && (int)item->model_id == minipetTransmog.itemToReplaceModelID;
             });
 
             if (it != minipetTransmogs.end()) 
             {
-                item->model_file_id = it->replacementItemModelFileID;
+                const auto modelFileID = toInt(it->replacementItemModelFileID);
+                if (modelFileID && *modelFileID)
+                    item->model_file_id = *modelFileID;
             }
             return false;
         }, Behaviour::AllItems);
-    });
+
+        const auto player = GW::Agents::GetControlledCharacter();
+        if (player && !npcTransmogs.empty()) 
+        {
+            TransmoAgent(player->agent_id, npcTransmogs[0]);
+        }
+    }); 
 
     GW::Chat::CreateCommand(L"restore", [](GW::HookStatus* status, const wchar_t*, const int argc, const LPWSTR* argv) {
         const auto instance = static_cast<SkinChanger*>(ToolboxPluginInstance());
@@ -695,21 +772,6 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
             instance->loadFromIniFile(iniToLoad.c_str());
         }
     });
-    GW::Chat::CreateCommand(L"skinchanger", [](GW::HookStatus*, const wchar_t*, const int argc, const LPWSTR* argv) 
-        {
-        const auto instance = static_cast<SkinChanger*>(ToolboxPluginInstance());
-        if (!instance || argc < 2) return;
-
-        const auto currentTarget = GW::Agents::GetTargetAsAgentLiving();
-        if (currentTarget && currentTarget->IsNPC() && argc >= 3 && PluginUtils::ToLower(argv[1]) == L"save") 
-        {
-            const auto npc = GW::Agents::GetNPCByID(currentTarget->player_number);
-            if (npc && npc->files_count) 
-            {
-                instance->npcTransmogs.push_back({PluginUtils::WStringToString(argv[2]), currentTarget->player_number, 0x64000000, npc->model_file_id, npc->model_files[0], npc->npc_flags});
-            }
-        }
-    });
 
     RegisterUIMessageCallback(&UseItem_Entry, GW::UI::UIMessage::kSendUseItem, [&](GW::HookStatus*, GW::UI::UIMessage, void* wparam, void*) {
         if (!wparam) return;
@@ -719,7 +781,7 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
 
         for (const auto& minipetTransmog : minipetTransmogs) 
         {
-            if (item->model_id == minipetTransmog.itemToReplaceModelID) 
+            if ((int)item->model_id == minipetTransmog.itemToReplaceModelID) 
             {
                 pendingMinipetTransmog = minipetTransmog;
                 return;
@@ -733,7 +795,7 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
         if (!agent || !agent->GetIsLivingType()) return;
         if (agent->GetAsAgentLiving()->player_number != pendingMinipetTransmog->agentToReplaceModelID) return;
 
-        TransmoAgent(agent->agent_id, std::move(*pendingMinipetTransmog));
+        TransmoAgent(agent->agent_id, pendingMinipetTransmog->npcTransmog);
         pendingMinipetTransmog = std::nullopt;
     });
 }
