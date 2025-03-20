@@ -26,7 +26,11 @@ struct ItemChange
 
 struct NpcTransmog 
 {
+    std::string nameToApply = "";
+
     int npcID = 0;
+    int scale = 0;
+
     std::string npcModelFileID = "0x";
     std::string npcModelFileData = "0x";
     std::string flags = "0x";
@@ -60,9 +64,10 @@ public:
     void SignalTerminate() override;
     void Terminate() override;
 
+    void Update(float) override;
+
     void loadFromIniFile(const wchar_t* filePath);
 
     std::vector<ItemChange> itemChanges;
-    std::vector<NpcTransmog> npcTransmogs;
     std::vector<MinipetTransmog> minipetTransmogs;
 };

@@ -19,6 +19,7 @@
 #include <GWCA/Managers/GameThreadMgr.h>
 #include <GWCA/Managers/MapMgr.h>
 #include <GWCA/Managers/ChatMgr.h>
+#include <GWCA/Managers/PlayerMgr.h>
 #include <GWCA/Managers/AgentMgr.h>
 
 #include <GWCA/Utilities/Hook.h>
@@ -33,12 +34,22 @@ namespace
 {
     GW::HookEntry UseItem_Entry;
     GW::HookEntry AgentAdd_Entry;
+    bool hasAgentAddHook = false;
     GW::HookEntry InstanceLoadFile_Entry;
 
     std::map<GW::Constants::Bag, std::vector<InventoryItem>> available_items;
     std::unordered_map<std::wstring, std::wstring> decodedNames;
 
-    static std::optional<MinipetTransmog> pendingMinipetTransmog;
+    std::optional<MinipetTransmog> pendingMinipetTransmog;
+
+    constexpr char endOfStringIdentifier = '~';
+
+    struct MiniPetStatus 
+    {
+        std::optional<uint32_t> poppedMinipetId = std::nullopt;
+        std::chrono::time_point<std::chrono::steady_clock> lastPop = std::chrono::steady_clock::now();
+    };
+    MiniPetStatus minipetStatus;
 
     std::string removeTextInBrackets(std::string str)
     {
@@ -73,6 +84,13 @@ namespace
         {
             return std::nullopt;
         }
+    }
+
+    std::string toHexString(uint32_t value) 
+    {
+        std::stringstream stream;
+        stream << std::hex << std::uppercase << value;
+        return "0x" + stream.str();
     }
 
     bool IsEquippable(const GW::Item* item)
@@ -332,7 +350,6 @@ namespace
 
     void TransmoAgent(DWORD agent_id, NpcTransmog transmo)
     {
-        PluginUtils::logMessage("Transmo Agent", "DBG");
         if (!transmo.npcID || !agent_id)
             return;
 
@@ -345,7 +362,7 @@ namespace
         const auto agent = static_cast<GW::AgentLiving*>(GW::Agents::GetAgentByID(agent_id));
         if (!agent || !agent->GetIsLivingType()) return;
         const auto existingNpc = GW::Agents::GetNPCByID(agent->player_number);
-        const auto scale = existingNpc ? existingNpc->scale : 0x23000000;
+        const auto scale = transmo.scale ? (std::max(10,std::min(255,transmo.scale)) * 0x1000000) : (existingNpc ? existingNpc->scale : 0x23000000);
 
         const auto& npcs = GW::GetGameContext()->world->npcs;
         if (transmo.npcID >= (int)npcs.size() || !npcs[transmo.npcID].model_file_id) 
@@ -379,8 +396,9 @@ namespace
             });
         }
 
-        PluginUtils::logMessage("Transmo Agent Send packet", "DBG");
-        GW::GameThread::Enqueue([npcID = transmo.npcID, agent_id, scale] 
+        const auto encodedName = transmo.nameToApply.empty() ? std::wstring{} : L"\x108\x107" + PluginUtils::StringToWString(transmo.nameToApply) + L"\x1";
+
+        GW::GameThread::Enqueue([npcID = transmo.npcID, npcName = encodedName, agent_id, scale] 
         {
             GW::Packet::StoC::AgentScale packet1;
             packet1.header = GW::Packet::StoC::AgentScale::STATIC_HEADER;
@@ -393,7 +411,23 @@ namespace
             packet2.agent_id = agent_id;
             packet2.model_id = npcID;
             GW::StoC::EmulatePacket(&packet2);
+
+            if (!npcName.empty()) 
+            {
+                GW::Packet::StoC::AgentName packet;
+                packet.header = GW::Packet::StoC::AgentName::STATIC_HEADER;
+                packet.agent_id = agent_id;
+                wcscpy(packet.name_enc, npcName.c_str());
+                GW::StoC::EmulatePacket(&packet);
+            }
         });
+    }
+
+    void trim(std::string& s) 
+    {
+        const auto isSpace = [](unsigned char ch) {return !std::isspace(ch);};
+        s.erase(s.begin(), std::find_if(s.begin(), s.end(), isSpace));
+        s.erase(std::find_if(s.rbegin(), s.rend(), isSpace).base(), s.end());
     }
 
     void drawNpcSelector(NpcTransmog& npcTransmog)
@@ -422,35 +456,94 @@ namespace
         ImGui::InputText("", &npcTransmog.flags);
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Desired NPC flags");
         ImGui::PopID();
+        ImGui::SameLine();
+
+        ImGui::PushID(4);
+        ImGui::InputInt("", &npcTransmog.scale, 0);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Desired NPC scale (10-255). 0 keeps size of current target.");
+        ImGui::PopID();
+        if (npcTransmog.scale < 0) npcTransmog.scale = 0;
+        if (npcTransmog.scale > 255) npcTransmog.scale = 255;
 
         ImGui::PopItemWidth();
     }
 
     void drawMinipetSelector(MinipetTransmog& minipetTransmog) 
     {
-        ImGui::PushItemWidth(70.f);
+        ImGui::PushItemWidth(160.f);
+
+        ImGui::Text("Name:");
+        ImGui::SameLine();
+
         ImGui::PushID(0);
+        ImGui::InputText("", &minipetTransmog.npcTransmog.nameToApply);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Name to apply (name is kept if empty)");
+        ImGui::PopID();
+        ImGui::SameLine();
+
+        trim(minipetTransmog.npcTransmog.nameToApply);
+        if (minipetTransmog.npcTransmog.nameToApply.size() > 31) 
+            minipetTransmog.npcTransmog.nameToApply.resize(31);
+
+        ImGui::PopItemWidth();
+        ImGui::PushItemWidth(50.f);
+
+        ImGui::Text("Current:");
+        ImGui::SameLine();
+
+        ImGui::PushID(1);
         ImGui::InputInt("", &minipetTransmog.agentToReplaceModelID, 0);
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Agent model ID");
         ImGui::PopID();
         ImGui::SameLine();
 
-        ImGui::PushID(1);
+        ImGui::PushID(2);
         ImGui::InputInt("", &minipetTransmog.itemToReplaceModelID, 0);
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Item model ID");
         ImGui::PopID();
         ImGui::SameLine();
 
-        ImGui::PushID(2);
-        ImGui::InputText("", &minipetTransmog.replacementItemModelFileID);
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Desired item model file ID");
-        ImGui::PopID();
+        ImGui::PopItemWidth();
+        ImGui::PushItemWidth(70.f);
+
+        ImGui::Text("Item:");
         ImGui::SameLine();
 
         ImGui::PushID(3);
-        drawNpcSelector(minipetTransmog.npcTransmog);
+        ImGui::InputText("", &minipetTransmog.replacementItemModelFileID);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Desired item model file ID (optional)");
         ImGui::PopID();
         ImGui::SameLine();
+
+        ImGui::Text("NPC:");
+        ImGui::SameLine();
+        if (ImGui::Button("Copy from target"))
+        {
+            [&] {
+                const auto target = GW::Agents::GetTarget();
+                if (!target->GetIsLivingType()) return;
+                const auto living = target->GetAsAgentLiving();
+                const GW::Player* player = living && living->IsPlayer() ? GW::PlayerMgr::GetPlayerByID(living->player_number) : nullptr;
+                auto npcID = living && living->IsNPC() ? living->player_number : 0;
+                if (player && living->transmog_npc_id & 0x20000000) npcID = living->transmog_npc_id ^ 0x20000000;
+
+                const auto npc = GW::Agents::GetNPCByID(npcID);
+                if (!npc) return;
+                minipetTransmog.npcTransmog.npcID = npcID;
+                minipetTransmog.npcTransmog.scale = npc->scale / 0x1000000;
+                minipetTransmog.npcTransmog.flags = toHexString(npc->npc_flags);
+                minipetTransmog.npcTransmog.npcModelFileID = toHexString(npc->model_file_id);
+                if (npc->files_count) 
+                {
+                    minipetTransmog.npcTransmog.npcModelFileData = toHexString(npc->model_files[0]);
+                }
+            }();
+        }
+        ImGui::SameLine();
+
+        ImGui::PushID(4);
+        drawNpcSelector(minipetTransmog.npcTransmog);
+        ImGui::PopID();
 
         ImGui::PopItemWidth();
     }
@@ -469,9 +562,9 @@ void SkinChanger::LoadSettings(const wchar_t* folder)
 
     loadFromIniFile(GetSettingFile(folder).c_str());
 
-    if (itemChanges.empty() && BackupManager::getInstance().backupCount(PluginUtils::StringToWString(Name())) > 0)
+    if (itemChanges.empty() && minipetTransmogs.empty() && BackupManager::getInstance().backupCount(PluginUtils::StringToWString(Name())) > 0)
     {
-        PluginUtils::logMessage("No runs loaded, but automatic backups found. Type \"/restore " + std::string{Name()} + " help\" to see options for restoring backups", Name());
+        PluginUtils::logMessage("No skin changes loaded, but automatic backups found. Type \"/restore " + std::string{Name()} + " help\" to see options for restoring backups", Name());
     }
 }
 
@@ -496,11 +589,28 @@ void SkinChanger::SaveSettings(const wchar_t* folder)
         itemsToSave += std::to_string((int)itemChange.enableDyes) + " ";
         itemsToSave += "END ";
     }
-
     ini.SetValue(Name(), VAR_NAME(itemChanges), itemsToSave.c_str());
+
+    std::string transmogsToSave;
+    transmogsToSave.reserve(4096);
+    for (const auto& minipetTransmog : minipetTransmogs) 
+    {
+        transmogsToSave += std::to_string(minipetTransmog.agentToReplaceModelID) + " ";
+        transmogsToSave += std::to_string(minipetTransmog.itemToReplaceModelID) + " ";
+        transmogsToSave += minipetTransmog.replacementItemModelFileID + " ";
+        transmogsToSave += minipetTransmog.npcTransmog.flags + " ";
+        transmogsToSave += minipetTransmog.npcTransmog.nameToApply + " " + endOfStringIdentifier + " ";
+        transmogsToSave += std::to_string(minipetTransmog.npcTransmog.npcID) + " ";
+        transmogsToSave += minipetTransmog.npcTransmog.npcModelFileData + " ";
+        transmogsToSave += minipetTransmog.npcTransmog.npcModelFileID + " ";
+        transmogsToSave += std::to_string(minipetTransmog.npcTransmog.scale) + " ";
+        transmogsToSave += "END ";
+    }
+    ini.SetValue(Name(), VAR_NAME(minipetTransmogs), transmogsToSave.c_str());
+
     PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 
-    if (itemChanges.size()) BackupManager::getInstance().save(PluginUtils::StringToWString(Name()), GetSettingFile(folder));
+    if (itemChanges.size() || minipetTransmogs.size()) BackupManager::getInstance().save(PluginUtils::StringToWString(Name()), GetSettingFile(folder));
 }
 
 void SkinChanger::DrawSettings()
@@ -568,31 +678,12 @@ void SkinChanger::DrawSettings()
         ImGui::Text("Item changes are applied on instance load.");
     }
 
-    // ----------------
-    {
-        int index = 0;
-        std::optional<int> indexToDelete;
-        for (auto& npcTransmog : npcTransmogs) {
-            ImGui::PushID(index++ + itemChanges.size());
-
-            if (ImGui::Button("X")) indexToDelete = index - 1;
-            ImGui::SameLine();
-
-            drawNpcSelector(npcTransmog);
-
-            ImGui::PopID();
-        }
-        ImGui::PushID(&npcTransmogs);
-        if (ImGui::Button("+")) npcTransmogs.push_back({});
-        ImGui::PopID();
-        if (indexToDelete) npcTransmogs.erase(npcTransmogs.begin() + *indexToDelete);
-    }
-    // -----------
+    ImGui::Text("Minipet transmogs:");
     {
         int index = 0;
         std::optional<int> indexToDelete;
         for (auto& minipetTransmog : minipetTransmogs) {
-            ImGui::PushID(index++ + itemChanges.size() + npcTransmogs.size());
+            ImGui::PushID(index++ + itemChanges.size());
 
             if (ImGui::Button("X")) indexToDelete = index - 1;
             ImGui::SameLine();
@@ -620,49 +711,92 @@ void SkinChanger::loadFromIniFile(const wchar_t* filePath)
 {
     ini.LoadFile(filePath);
     itemChanges.clear();
+    minipetTransmogs.clear();
 
-    std::string loadedItems = ini.GetValue(Name(), VAR_NAME(itemChanges), "");
-    if (loadedItems.empty()) return;
+    [&]{
+        std::string loadedItems = ini.GetValue(Name(), VAR_NAME(itemChanges), "");
+        if (loadedItems.empty()) return;
 
-    std::stringstream ss{loadedItems};
+        std::stringstream ss{loadedItems};
+        while (ss) {
+            ItemChange itemChange;
 
-    while (ss) {
-        ItemChange itemChange;
+            ss >> std::ws >> itemChange.item.modelID >> std::ws;
 
-        ss >> std::ws >> itemChange.item.modelID >> std::ws;
+            uint32_t readMod;
+            while (ss && ss.peek() != 'S') {
+                ss >> readMod;
+                itemChange.item.modifiers.push_back({readMod});
+                ss >> std::ws;
+            }
+            if (ss && ss.peek() == 'S')
+                ss.get();
+            else
+                return;
 
-        uint32_t readMod;
-        while (ss && ss.peek() != 'S') {
-            ss >> readMod;
-            itemChange.item.modifiers.push_back({readMod});
             ss >> std::ws;
-        }
-        if (ss && ss.peek() == 'S')
-            ss.get();
-        else
-            return;
+            if (ss) ss >> itemChange.modelFileID;
 
-        ss >> std::ws;
-        if (ss) ss >> itemChange.modelFileID;
+            int readDye;
+            for (auto& dye : itemChange.dyes) {
+                ss >> readDye;
+                dye = (GW::DyeColor)(readDye);
+            }
+            {
+                // String stream for uint8_t does not what you would expect
+                int read;
+                ss >> read;
+                if (read >= 0 && read < 256) itemChange.tint = (uint8_t)read;
+            }
+            ss >> itemChange.enableDyes;
 
-        int readDye;
-        for (auto& dye : itemChange.dyes) {
-            ss >> readDye;
-            dye = (GW::DyeColor)(readDye);
+            std::string read;
+            while (ss >> read && read != "END") {}
+
+            itemChanges.push_back(itemChange);
         }
+    }();
+
+    [&]{
+        std::string loadedTransmogs = ini.GetValue(Name(), VAR_NAME(minipetTransmogs), "");
+        if (loadedTransmogs.empty()) return;
+
+        std::stringstream ss{loadedTransmogs};
+        while (ss) 
         {
-            // String stream for uint8_t does not what you would expect
-            int read;
-            ss >> read;
-            if (read >= 0 && read < 256) itemChange.tint = (uint8_t)read;
+            MinipetTransmog transmog;
+
+            ss >> transmog.agentToReplaceModelID;
+            ss >> transmog.itemToReplaceModelID;
+            ss >> std::ws >> transmog.replacementItemModelFileID;
+            ss >> std::ws >> transmog.npcTransmog.flags;
+            while (true) 
+            {
+                if (!ss) break;
+                ss >> std::ws;
+                if (ss.peek() == endOfStringIdentifier) 
+                {
+                    ss.get();
+                    break;
+                }
+                std::string read;
+                ss >> read;
+                transmog.npcTransmog.nameToApply += read;
+                transmog.npcTransmog.nameToApply += " ";
+            }
+            trim(transmog.npcTransmog.nameToApply);
+            ss >> std::ws >> transmog.npcTransmog.npcID;
+            ss >> std::ws >> transmog.npcTransmog.npcModelFileData;
+            ss >> std::ws >> transmog.npcTransmog.npcModelFileID;
+            ss >> std::ws >> transmog.npcTransmog.scale;
+
+            std::string read;
+            while (ss >> read && read != "END") {}
+            ss >> std::ws;
+
+            minipetTransmogs.push_back(transmog);
         }
-        ss >> itemChange.enableDyes;
-
-        std::string read;
-        while (ss >> read && read != "END") {}
-
-        itemChanges.push_back(itemChange);
-    }
+    }();
 }
 
 void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMODULE toolbox_dll)
@@ -671,7 +805,7 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
     GW::Initialize();
 
     // minipetTransmogs.push_back(MinipetTransmog{36651, 350, 0x564EB, 12, 0x3d67, 0x40d97, 98820});
-    minipetTransmogs.push_back(MinipetTransmog{36651, 350, "0x564EB", 12, "0x3d67", "0x40d97", "0x18204"});
+    //minipetTransmogs.push_back(MinipetTransmog{36651, 350, "0x564EB", {"My custom name", 12, "0x3d67", "0x40d97", "0x18204"}});
 
     GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::InstanceLoadFile*) {
         forEachItem([&](GW::Item* item) 
@@ -712,11 +846,9 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
             return false;
         }, Behaviour::AllItems);
 
-        const auto player = GW::Agents::GetControlledCharacter();
-        if (player && !npcTransmogs.empty()) 
-        {
-            TransmoAgent(player->agent_id, npcTransmogs[0]);
-        }
+        using namespace std::chrono_literals;
+        minipetStatus.poppedMinipetId = std::nullopt;
+        minipetStatus.lastPop = std::chrono::steady_clock::now() - 1h;
     }); 
 
     GW::Chat::CreateCommand(L"restore", [](GW::HookStatus* status, const wchar_t*, const int argc, const LPWSTR* argv) {
@@ -773,32 +905,66 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
         }
     });
 
-    RegisterUIMessageCallback(&UseItem_Entry, GW::UI::UIMessage::kSendUseItem, [&](GW::HookStatus*, GW::UI::UIMessage, void* wparam, void*) {
+    GW::UI::RegisterUIMessageCallback(&UseItem_Entry, GW::UI::UIMessage::kSendUseItem, [&](GW::HookStatus*, GW::UI::UIMessage, void* wparam, void*) {
         if (!wparam) return;
 
         const auto item = GW::Items::GetItemById((uint32_t)wparam);
         if (!item) return;
 
-        for (const auto& minipetTransmog : minipetTransmogs) 
+        const auto potentialTransmog = std::ranges::find_if(minipetTransmogs, [id = (int)item->model_id](const auto& transmog) { return transmog.itemToReplaceModelID == id; });
+        const auto isGhostInTheBox = item->model_id == GW::Constants::ItemID::GhostInTheBox;
+        if (isGhostInTheBox || potentialTransmog != minipetTransmogs.end()) 
         {
-            if ((int)item->model_id == minipetTransmog.itemToReplaceModelID) 
+            if (minipetStatus.poppedMinipetId && minipetStatus.poppedMinipetId.value() == item->model_id) 
             {
-                pendingMinipetTransmog = minipetTransmog;
+                minipetStatus.poppedMinipetId = std::nullopt;
                 return;
+            }
+
+            const auto now = std::chrono::steady_clock::now();
+            const auto msSinceLastPop = std::chrono::duration_cast<std::chrono::milliseconds>(now - minipetStatus.lastPop).count();
+
+            if (msSinceLastPop <= 10'000) return;
+            minipetStatus.lastPop = now;
+            
+            if (!isGhostInTheBox) 
+            {
+                minipetStatus.poppedMinipetId = item->model_id;
+                pendingMinipetTransmog = *potentialTransmog;
             }
         }
     });
-
-    GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::AgentAdd>(&AgentAdd_Entry, [&](GW::HookStatus*, const GW::Packet::StoC::AgentAdd* packet) {
-        if (!pendingMinipetTransmog) return;
-        const auto agent = GW::Agents::GetAgentByID(packet->agent_id);
-        if (!agent || !agent->GetIsLivingType()) return;
-        if (agent->GetAsAgentLiving()->player_number != pendingMinipetTransmog->agentToReplaceModelID) return;
-
-        TransmoAgent(agent->agent_id, pendingMinipetTransmog->npcTransmog);
-        pendingMinipetTransmog = std::nullopt;
-    });
 }
+
+void SkinChanger::Update(float)
+{
+    if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading) 
+    {
+        pendingMinipetTransmog = std::nullopt;
+        if (hasAgentAddHook) 
+        {
+            hasAgentAddHook = false;
+            GW::StoC::RemovePostCallback<GW::Packet::StoC::AgentAdd>(&AgentAdd_Entry);
+        }
+        return;
+    }
+    if (!hasAgentAddHook) 
+    {
+        hasAgentAddHook = true;
+        GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::AgentAdd>(&AgentAdd_Entry, [&](GW::HookStatus* status, const GW::Packet::StoC::AgentAdd* pak) 
+        {
+            if (status->blocked || !pak->agent_type || !pendingMinipetTransmog) return;
+
+            const auto agent = GW::Agents::GetAgentByID(pak->agent_id);
+            if (!agent || !agent->GetIsLivingType()) return;
+            if (agent->GetAsAgentLiving()->player_number != pendingMinipetTransmog->agentToReplaceModelID) return;
+
+            TransmoAgent(agent->agent_id, pendingMinipetTransmog->npcTransmog);
+            pendingMinipetTransmog = std::nullopt;
+        });
+    }
+}
+
 
 bool SkinChanger::CanTerminate()
 {
@@ -808,7 +974,11 @@ bool SkinChanger::CanTerminate()
 void SkinChanger::SignalTerminate()
 {
     ToolboxPlugin::SignalTerminate();
+    
     GW::StoC::RemovePostCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry);
+    GW::UI::RemoveUIMessageCallback(&UseItem_Entry, GW::UI::UIMessage::kSendUseItem);
+    GW::StoC::RemoveCallbacks(&AgentAdd_Entry);
+
     GW::DisableHooks();
 }
 
