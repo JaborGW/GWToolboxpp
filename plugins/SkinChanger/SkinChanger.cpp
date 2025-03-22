@@ -356,7 +356,7 @@ namespace
         const auto npcModelFileID = toInt(transmo.npcModelFileID);
         const auto npcModelFileData = toInt(transmo.npcModelFileData);
         const auto flags = toInt(transmo.flags);
-        if (!npcModelFileID || !npcModelFileData || !flags || npcModelFileID == 0 || npcModelFileData == 0 || flags == 0) 
+        if (!npcModelFileID || !flags || npcModelFileID == 0) 
             return;
 
         const auto agent = static_cast<GW::AgentLiving*>(GW::Agents::GetAgentByID(agent_id));
@@ -386,11 +386,12 @@ namespace
                 GW::StoC::EmulatePacket(&packet);
             });
 
-            GW::GameThread::Enqueue([npcID = transmo.npcID, npcModelFileData = *npcModelFileData] {
+            GW::GameThread::Enqueue([npcID = transmo.npcID, npcModelFileData = npcModelFileData] {
                 GW::Packet::StoC::NPCModelFile packet;
                 packet.npc_id = npcID;
-                packet.count = 1;
-                packet.data[0] = npcModelFileData;
+                packet.count = npcModelFileData ? 1 : 0;
+                if (packet.count)
+                    packet.data[0] = *npcModelFileData;
 
                 GW::StoC::EmulatePacket(&packet);
             });
@@ -547,6 +548,28 @@ namespace
 
         ImGui::PopItemWidth();
     }
+
+    std::optional<uint32_t> getInteractionOverwrite(uint32_t modelFileID) 
+    {
+        // Non-EotN elementalist headpieces have a weird interaction value. If one tries to transmog them to the EotN pieces, it fails.
+        // Manually overwrite the value when using these skins.
+        switch (modelFileID) 
+        {
+            case 0x7F5: // Bandana
+            case 0x817: // Blindfold
+            case 0x818: // Crown
+            case 0x830: // Dread Mask
+            case 0x8AE: // Highlander Woad
+            case 0x7F6: // Mask of the Mo Zing
+            case 0x8AF: // Norn Woad
+            case 0x844: // Slim Spectacles
+            case 0x845: // Spectacles
+            case 0x846: // Tinted Spectacles
+                return 0x20000006;
+            default:
+                return std::nullopt;
+        }
+    }
 } // namespace
 
 DLLAPI ToolboxPlugin* ToolboxPluginInstance()
@@ -697,7 +720,7 @@ void SkinChanger::DrawSettings()
     }
     //
 
-    ImGui::Text("Version 1.1. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.1.1 For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
@@ -816,8 +839,13 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
             });
 
             if (it != itemChanges.end()) {
-                if (const auto modelFileID = toInt(it->modelFileID); modelFileID && modelFileID.value() != 0) {
+                if (const auto modelFileID = toInt(it->modelFileID); modelFileID && modelFileID.value() != 0) 
+                {
                     item->model_file_id = *modelFileID;
+                    if (const auto interactionOverwrite = getInteractionOverwrite(*modelFileID)) 
+                    {
+                        item->interaction = *interactionOverwrite;
+                    }
                 }
                 if (it->enableDyes) {
                     item->dye.dye_tint = it->tint;
@@ -840,8 +868,10 @@ void SkinChanger::Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMO
             if (it != minipetTransmogs.end()) 
             {
                 const auto modelFileID = toInt(it->replacementItemModelFileID);
-                if (modelFileID && *modelFileID)
+                if (modelFileID && *modelFileID) 
+                {
                     item->model_file_id = *modelFileID;
+                }
             }
             return false;
         }, Behaviour::AllItems);
