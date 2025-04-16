@@ -2303,7 +2303,12 @@ ActionStatus KeyboardMoveAction::isComplete() const
 
     if (GW::GetDistance(player->pos, targetPosition) < 5.f || (!isMoving && startedWalking)) 
     {
-        GW::GameThread::Enqueue([]{ GW::UI::Keypress(GW::UI::ControlAction_CancelAction); });
+        GW::GameThread::Enqueue([playerPos = player->pos, direction = targetPosition - player->pos, movementDirection = movementDirection]() mutable {
+            auto normalizedDirection = GW::Normalize(direction);
+            const int forwardsFlag = movementDirection == MovementDirection::Backwards ? -1 : 0;
+            const int sideWaysFlag = movementDirection == MovementDirection::Right ? 1 : (movementDirection == MovementDirection::Left ? -1 : 0);
+            SideWalk_Func(reinterpret_cast<float*>(&playerPos), reinterpret_cast<float*>(&normalizedDirection), std::min(GW::GetNorm(direction), 1000.f), forwardsFlag, sideWaysFlag, 1);
+        });
         return ActionStatus::Complete;
     }
     return ActionStatus::Running;
