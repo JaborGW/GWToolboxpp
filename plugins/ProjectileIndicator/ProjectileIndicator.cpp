@@ -57,11 +57,15 @@ void ProjectileIndicator::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODU
 
     ToolboxUIPlugin::Initialize(ctx, fns, toolbox_dll);
 
-    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::AgentProjectileLaunched>(&projectileHook, [this](GW::HookStatus*, GW::Packet::StoC::AgentProjectileLaunched* packet) -> void {
+    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::AgentProjectileLaunched>(&projectileHook, [this](GW::HookStatus* status, GW::Packet::StoC::AgentProjectileLaunched* packet) -> void {
         if (!shouldRender()) return;
+        
         const auto agent = GW::Agents::GetAgentByID(packet->agent_id);
         if (!agent || !agent->GetIsLivingType()) return;
         const auto living = agent->GetAsAgentLiving();
+
+        status->blocked = std::ranges::contains(suppressedProjecitileAnimationSources, living->player_number);
+        
         if (living->allegiance != GW::Constants::Allegiance::Enemy || !std::ranges::contains(trackedSkills, (GW::Constants::SkillID)agent->GetAsAgentLiving()->skill)) return;
         if (!trackedEnemyModels.empty() && !std::ranges::contains(trackedEnemyModels, (int)living->player_number)) return;
 
@@ -103,13 +107,13 @@ void ProjectileIndicator::DrawSettings()
     ImGui::ColorEdit4("Color", reinterpret_cast<float*>(&color));
     ImGui::SliderInt("Display duration (ms)", &projectileTimer, 100, 4000);
 
-    
+    int drawID = 0;
     {
         ImGui::Text("Tracked skills:");
         auto toErase = trackedSkills.end();
         for (auto it = trackedSkills.begin(); it != trackedSkills.end(); ++it) 
         {
-            ImGui::PushID(it - trackedSkills.begin());
+            ImGui::PushID(drawID++);
             ImGui::Bullet();
             if (ImGui::Button("X", ImVec2(20, 20)))toErase = it;
             ImGui::SameLine();
@@ -138,7 +142,7 @@ void ProjectileIndicator::DrawSettings()
         auto toErase = trackedEnemyModels.end();
         for (auto it = trackedEnemyModels.begin(); it != trackedEnemyModels.end(); ++it) 
         {
-            ImGui::PushID(it - trackedEnemyModels.begin() + trackedSkills.size());
+            ImGui::PushID(drawID++);
             ImGui::Bullet();
             if (ImGui::Button("X", ImVec2(20, 20))) toErase = it;
             ImGui::SameLine();
@@ -155,7 +159,7 @@ void ProjectileIndicator::DrawSettings()
         {
             trackedEnemyModels.erase(toErase);
         }
-        ImGui::PushID(trackedSkills.size() + trackedEnemyModels.size());
+        ImGui::PushID(drawID++);
         if (ImGui::Button("+")) 
         {
             trackedEnemyModels.push_back(0);
@@ -163,7 +167,34 @@ void ProjectileIndicator::DrawSettings()
         ImGui::PopID();
     }
 
-    ImGui::Text("Version 1.1. For new releases, feature requests and bug reports check out");
+    {
+        ImGui::Text("Supress projectiles from agents with model ID:");
+        auto toErase = suppressedProjecitileAnimationSources.end();
+        for (auto it = suppressedProjecitileAnimationSources.begin(); it != suppressedProjecitileAnimationSources.end(); ++it) {
+            ImGui::PushID(drawID++);
+            ImGui::Bullet();
+            if (ImGui::Button("X", ImVec2(20, 20))) toErase = it;
+            ImGui::SameLine();
+            if (const auto modelIt = modelNames.find((uint16_t)*it); modelIt != modelNames.end()) {
+                ImGui::Text(modelIt->second.data());
+                ImGui::SameLine();
+            }
+            ImGui::PushItemWidth(100.f);
+            ImGui::InputInt("", &*it, 0);
+            ImGui::PopItemWidth();
+            ImGui::PopID();
+        }
+        if (toErase != suppressedProjecitileAnimationSources.end()) {
+            suppressedProjecitileAnimationSources.erase(toErase);
+        }
+        ImGui::PushID(drawID++);
+        if (ImGui::Button("+")) {
+            suppressedProjecitileAnimationSources.push_back(0);
+        }
+        ImGui::PopID();
+    }
+
+    ImGui::Text("Version 1.2. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
     ImGui::TextColored(ImColor{102, 187, 238, 255}, discordInviteLink);
@@ -199,6 +230,7 @@ void ProjectileIndicator::LoadSettings(const wchar_t* folder)
 
     trackedSkills = split(ini.GetValue(Name(), "skills", ""), GW::Constants::SkillID{});
     trackedEnemyModels = split(ini.GetValue(Name(), "models", ""), int{});
+    suppressedProjecitileAnimationSources = split(ini.GetValue(Name(), "suppressed", ""), int{});
 }
 
 void ProjectileIndicator::SaveSettings(const wchar_t* folder)
@@ -227,6 +259,12 @@ void ProjectileIndicator::SaveSettings(const wchar_t* folder)
         models += std::to_string(model) + " ";
     }
     ini.SetValue(Name(), "models", models.c_str());
+
+    std::string suppressed;
+    for (const auto& source : suppressedProjecitileAnimationSources) {
+        suppressed += std::to_string(source) + " ";
+    }
+    ini.SetValue(Name(), "suppressed", suppressed.c_str());
 
     PLUGIN_ASSERT(ini.SaveFile(GetSettingFile(folder).c_str()) == SI_OK);
 }

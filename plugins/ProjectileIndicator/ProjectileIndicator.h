@@ -30,4 +30,5 @@ private:
     int projectileTimer = 1000;
     std::vector<GW::Constants::SkillID> trackedSkills = {GW::Constants::SkillID::Bone_Spike, GW::Constants::SkillID::Flurry_of_Splinters};
     std::vector<int> trackedEnemyModels = {};
+    std::vector<int> suppressedProjecitileAnimationSources = {};
 };
