@@ -824,7 +824,7 @@ void GWSplits::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODULE toolbox_
     });
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::DoACompleteZone>(&DoACompleteZone_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::DoACompleteZone* packet) {
         const auto doaZone = (DoaZone)packet->message[1];
-        handleTrigger(Trigger::DungeonReward, [&](const Split& s){ return s.triggerData.doaZone == doaZone; });
+        handleTrigger(Trigger::DoaZoneComplete, [&](const Split& s){ return s.triggerData.doaZone == doaZone; });
     });
 
     GW::Chat::CreateCommand(L"restore", [](GW::HookStatus* status, const wchar_t*, const int argc, const LPWSTR* argv) {
