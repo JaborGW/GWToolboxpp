@@ -592,3 +592,19 @@ private:
     MovementDirection movementDirection = MovementDirection::Right;
     mutable bool startedWalking = false;
 };
+
+class RandomAction : public Action {
+public:
+    RandomAction() = default;
+    RandomAction(InputStream&);
+    ActionType type() const final { return ActionType::Random; }
+    void initialAction() final;
+    ActionStatus isComplete() const final;
+    void drawSettings() final;
+    void serialize(OutputStream&) const final;
+    ActionBehaviourFlags behaviour() const final;
+
+private:
+    std::vector<ActionPtr> actions = {};
+    mutable ActionPtr currentAction = nullptr;
+};
