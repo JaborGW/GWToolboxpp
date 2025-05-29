@@ -6,7 +6,7 @@
 namespace {
     ActionPtr makeAction(ActionType type)
     {
-        static_assert((int)ActionType::Count == 40);
+        static_assert((int)ActionType::Count == 41);
         switch (type) {
             case ActionType::MoveTo:
                 return std::make_shared<MoveToAction>();
@@ -86,6 +86,8 @@ namespace {
                 return std::make_shared<RotateCharacterAction>();
             case ActionType::KeyboardMove:
                 return std::make_shared<KeyboardMoveAction>();
+            case ActionType::Random:
+                return std::make_shared<RandomAction>();
             default:
                 return nullptr;
         }
@@ -94,7 +96,7 @@ namespace {
 
 std::string_view toString(ActionType type)
 {
-    static_assert((int)ActionType::Count == 40);
+    static_assert((int)ActionType::Count == 41);
     switch (type) {
         case ActionType::MoveTo:
             return "Move to Position";
@@ -174,6 +176,8 @@ std::string_view toString(ActionType type)
             return "Rotate";
         case ActionType::KeyboardMove:
             return "Keyboard move";
+        case ActionType::Random:
+            return "Random choice";
         default:
             return "Unknown";
     }
@@ -181,7 +185,7 @@ std::string_view toString(ActionType type)
 
 ActionPtr readAction(InputStream& stream)
 {
-    static_assert((int)ActionType::Count == 40);
+    static_assert((int)ActionType::Count == 41);
     int type;
 
     stream >> type;
@@ -264,6 +268,8 @@ ActionPtr readAction(InputStream& stream)
             return std::make_shared<RotateCharacterAction>(stream);
         case ActionType::KeyboardMove:
             return std::make_shared<KeyboardMoveAction>(stream);
+        case ActionType::Random:
+            return std::make_shared<RandomAction>(stream);
         default:
             return nullptr;
     }
@@ -307,7 +313,7 @@ ActionPtr drawActionSelector(float width)
         drawSubMenu("Chat", std::array{ActionType::SendChat, ActionType::PingTarget, ActionType::PingHardMode});
         drawSubMenu("Control flow", std::array{ActionType::Wait, ActionType::WaitUntil, ActionType::StopScript, ActionType::EnterCriticalSection, ActionType::LeaveCriticalSection});
         drawSubMenu("Variables", std::array{ActionType::SetVariable, ActionType::IncrementVariable, ActionType::DecrementVariable});
-        drawSubMenu("Other", std::array{ActionType::Cancel, ActionType::LogOut, ActionType::GWKey, ActionType::AbandonQuest});
+        drawSubMenu("Other", std::array{ActionType::Cancel, ActionType::LogOut, ActionType::GWKey, ActionType::AbandonQuest, ActionType::Random});
         drawActionSelector(ActionType::Conditioned);
 
         ImGui::EndPopup();

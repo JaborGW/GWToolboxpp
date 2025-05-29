@@ -2337,3 +2337,135 @@ void KeyboardMoveAction::drawSettings()
     ImGui::PopItemWidth();
     ImGui::PopID();
 }
+
+/// ------------- RandomAction -------------
+RandomAction::RandomAction(InputStream& stream)
+{
+    std::string read;
+    const auto readActionSequence = [&](auto& sequence) {
+        size_t size;
+        stream >> size;
+        for (size_t i = 0; i < size; ++i) {
+            if (stream.isAtSeparator() || !(stream >> read)) continue;
+
+            if (read == missingContentToken)
+                sequence.push_back(nullptr);
+            else if (read == "A")
+                sequence.push_back(readAction(stream));
+            else
+                throw std::runtime_error("Invalid string");
+
+            stream.proceedPastSeparator(2);
+        }
+    };
+
+    try {
+        readActionSequence(actions);
+    } catch (...) {}
+}
+
+void RandomAction::serialize(OutputStream& stream) const
+{
+    Action::serialize(stream);
+
+    const auto writeActionSequence = [&](const auto& sequence) {
+        stream << sequence.size();
+        for (const auto& action : sequence) {
+            if (action)
+                action->serialize(stream);
+            else
+                stream << missingContentToken;
+            stream.writeSeparator(2);
+        }
+    };
+
+    writeActionSequence(actions);
+}
+
+void RandomAction::initialAction()
+{
+    Action::initialAction();
+    if (actions.empty()) 
+    {
+        currentAction = nullptr;
+        return;
+    }
+
+    currentAction = actions[rand() % actions.size()];
+    if (currentAction) 
+    {
+        currentAction->initialAction();
+    }
+}
+
+ActionStatus RandomAction::isComplete() const
+{
+    if (!currentAction) return ActionStatus::Complete;
+
+    switch (const auto status = currentAction->isComplete()) 
+    {
+        case ActionStatus::Running:
+            return ActionStatus::Running;
+        default:
+            currentAction = nullptr;
+            return status;
+    }
+}
+void RandomAction::drawSettings()
+{
+    const auto drawActionsSelector = [](auto& actions) {
+        ImGui::Indent(indent);
+
+        std::optional<int> rowToDelete;
+        std::optional<std::pair<int, int>> rowsToSwap;
+
+        for (int i = 0; i < int(actions.size()); ++i) {
+            ImGui::PushID(i);
+
+            ImGui::Bullet();
+            if (ImGui::Button("X", ImVec2(20, 0))) {
+                if (actions[i])
+                    actions[i] = nullptr;
+                else
+                    rowToDelete = i;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("^", ImVec2(20, 0)) && i > 0) rowsToSwap = {i - 1, i};
+            ImGui::SameLine();
+            if (ImGui::Button("v", ImVec2(20, 0)) && i + 1 < int(actions.size())) rowsToSwap = {i, i + 1};
+
+            ImGui::SameLine();
+            if (actions[i])
+                actions[i]->drawSettings();
+            else
+                actions[i] = drawActionSelector(100.f);
+
+            ImGui::PopID();
+        }
+        if (rowToDelete) actions.erase(actions.begin() + *rowToDelete);
+        if (rowsToSwap) std::swap(*(actions.begin() + rowsToSwap->first), *(actions.begin() + rowsToSwap->second));
+
+        ImGui::Bullet();
+        if (ImGui::Button("Add row")) {
+            actions.push_back(nullptr);
+        }
+
+        ImGui::Unindent(indent);
+    };
+
+    ImGui::Text("Do one of the foillowing at random:");
+    ImGui::PushID(drawId());
+    drawActionsSelector(actions);
+    ImGui::PopID();
+}
+
+ActionBehaviourFlags RandomAction::behaviour() const
+{
+    ActionBehaviourFlags flags = ActionBehaviourFlag::All;
+    for (const auto& action : actions) 
+    {
+        if (action) 
+            flags &= action->behaviour();
+    }
+    return flags;
+}

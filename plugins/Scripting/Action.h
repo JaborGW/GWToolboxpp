@@ -45,6 +45,7 @@ enum class ActionType : int {
     MoveItemToSlot,
     RotateCharacter,
     KeyboardMove,
+    Random,
 
     Count
 };
