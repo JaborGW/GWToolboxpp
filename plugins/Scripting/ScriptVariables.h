@@ -31,6 +31,11 @@ public:
     }
     void clear() { std::erase_if(variables, [](const auto& elem){return !elem.second.preserveThroughInstanceLoad;}); }
 
+    const std::unordered_map<std::string, Variable>& list() const 
+    {
+        return variables;
+    }
+
 private:
     ScriptVariableManager() = default;
     ScriptVariableManager(const ScriptVariableManager&) = delete;

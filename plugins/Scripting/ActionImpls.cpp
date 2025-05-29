@@ -1081,6 +1081,25 @@ void SendChatAction::serialize(OutputStream& stream) const
     stream << channel;
     writeStringWithSpaces(stream, message);
 }
+namespace {
+    std::string evaluateVariables(std::string_view string) 
+    {
+        const auto variables = ScriptVariableManager::getInstance().list();
+
+        auto result = std::string{string};
+
+        for (const auto& [name, value] : variables) {
+            while (true) 
+            {
+                const auto index = result.find("$" + name);
+                if (index == std::string::npos) break;
+                result.replace(index, name.size() + 1, std::to_string(value.value));
+            }
+        }
+
+        return result;
+    }
+}
 void SendChatAction::initialAction()
 {
     Action::initialAction();
@@ -1110,9 +1129,9 @@ void SendChatAction::initialAction()
             default:
                 return '#';
         }
-        }();
+    }();
 
-    GW::GameThread::Enqueue([channelId, message = this->message] { GW::Chat::SendChat(channelId, message.c_str()); });
+    GW::GameThread::Enqueue([channelId, message = evaluateVariables(this->message)] { GW::Chat::SendChat(channelId, message.c_str()); });
 }
 
 void SendChatAction::drawSettings()
