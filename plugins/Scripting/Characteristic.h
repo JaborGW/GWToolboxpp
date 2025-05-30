@@ -28,6 +28,9 @@ enum class CharacteristicType : int {
     AngleToCameraForward,
     DistanceToModelId,
     IsStoredTarget,
+    Not,
+    And,
+    Or,
 
     Count
 };
