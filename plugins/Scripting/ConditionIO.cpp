@@ -9,7 +9,7 @@ namespace
 {
 ConditionPtr makeCondition(ConditionType type)
 {
-    static_assert((int)ConditionType::Count == 53);
+    static_assert((int)ConditionType::Count == 54);
     switch (type) {
         case ConditionType::Not:
             return std::make_shared<NegatedCondition>();
@@ -42,6 +42,8 @@ ConditionPtr makeCondition(ConditionType type)
             return std::make_shared<PlayerHasSkillCondition>();
         case ConditionType::PlayerHasEnergy:
             return std::make_shared<PlayerHasEnergyCondition>();
+        case ConditionType::PlayerHasEnergyRegen:
+            return std::make_shared<PlayerHasEnergyRegenCondition>();
         case ConditionType::PlayerHasItemEquipped:
             return std::make_shared<PlayerHasItemEquippedCondition>();
         case ConditionType::PlayerMorale:
@@ -99,7 +101,7 @@ ConditionPtr makeCondition(ConditionType type)
 
 std::string_view toString(ConditionType type)
 {
-    static_assert((int)ConditionType::Count == 53);
+    static_assert((int)ConditionType::Count == 54);
     switch (type) {
         case ConditionType::Not:
             return "Not";
@@ -132,6 +134,8 @@ std::string_view toString(ConditionType type)
             return "Has skill";
         case ConditionType::PlayerHasEnergy:
             return "Energy";
+        case ConditionType::PlayerHasEnergyRegen:
+            return "Energy regeneration";
         case ConditionType::PlayerMorale:
             return "Morale";
         case ConditionType::PlayerHasItemEquipped:
@@ -189,7 +193,7 @@ std::string_view toString(ConditionType type)
 
 ConditionPtr readCondition(InputStream& stream)
 {
-static_assert((int)ConditionType::Count == 53);
+static_assert((int)ConditionType::Count == 54);
 int type;
 stream >> type;
 switch (static_cast<ConditionType>(type))
@@ -225,6 +229,8 @@ switch (static_cast<ConditionType>(type))
         return std::make_shared<PlayerHasSkillCondition>(stream);
     case ConditionType::PlayerHasEnergy:
         return std::make_shared<PlayerHasEnergyCondition>(stream);
+    case ConditionType::PlayerHasEnergyRegen:
+        return std::make_shared<PlayerHasEnergyRegenCondition>(stream);
     case ConditionType::PlayerHasItemEquipped:
         return std::make_shared<PlayerHasItemEquippedCondition>(stream);
     case ConditionType::ItemInInventory:
@@ -307,7 +313,7 @@ ConditionPtr drawConditionSelector(float width)
         ImGui::OpenPopup("Add condition");
     }
 
-    constexpr auto skillConditions = std::array{ConditionType::PlayerHasBuff, ConditionType::PlayerHasSkill, ConditionType::PlayerHasSkillBySlot, ConditionType::RemainingCooldown, ConditionType::PlayerHasEnergy, ConditionType::PlayerMorale};
+    constexpr auto skillConditions = std::array{ConditionType::PlayerHasBuff, ConditionType::PlayerHasSkill, ConditionType::PlayerHasSkillBySlot, ConditionType::RemainingCooldown, ConditionType::PlayerHasEnergy, ConditionType::PlayerHasEnergyRegen, ConditionType::PlayerMorale};
     constexpr auto itemConditions = std::array{ConditionType::PlayerHasItemEquipped, ConditionType::ItemInInventory, ConditionType::CanPopAgent};
     constexpr auto partyConditions = std::array{ConditionType::PartyPlayerCount, ConditionType::PartyHasLoadedIn, ConditionType::PartyMemberStatus, ConditionType::HasPartyWindowAllyOfName};
     constexpr auto instanceConditions = std::array{ConditionType::IsInMap, ConditionType::InstanceType, ConditionType::DoorStatus, ConditionType::QuestHasState, ConditionType::InstanceProgress, ConditionType::InstanceTime, ConditionType::FoeCount};

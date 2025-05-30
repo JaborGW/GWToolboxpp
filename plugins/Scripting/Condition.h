@@ -41,6 +41,7 @@ enum class ConditionType : int {
     PlayerHasSkillBySlot,
     ScriptVariableIsSet,
     DoorStatus,
+    PlayerHasEnergyRegen,
 
     Count
 };
