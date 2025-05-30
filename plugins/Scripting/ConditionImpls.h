@@ -520,3 +520,17 @@ private:
     DoorStatus status = DoorStatus::Open;
     Area area = Area::Doa;
 };
+
+class PlayerHasEnergyRegenCondition : public Condition {
+public:
+    PlayerHasEnergyRegenCondition() = default;
+    PlayerHasEnergyRegenCondition(InputStream&);
+    ConditionType type() const final { return ConditionType::PlayerHasEnergyRegen; }
+    bool check() const final;
+    void drawSettings() final;
+    void serialize(OutputStream&) const final;
+
+private:
+    int regeneration = 4;
+    ComparisonOperator comp = ComparisonOperator::Equals;
+};

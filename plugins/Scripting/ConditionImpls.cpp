@@ -249,7 +249,7 @@ bool DisjunctionCondition::check() const
 void DisjunctionCondition::drawSettings()
 {
     ImGui::PushID(drawId());
-    ImGui::Text("If ONE of the following is true:");
+    ImGui::Text("If ANY of the following is true:");
     ImGui::Indent(indent);
 
     int rowToDelete = -1;
@@ -1770,6 +1770,40 @@ void DoorStatusCondition::drawSettings()
     ImGui::Text("is");;
     ImGui::SameLine();
     drawEnumButton(DoorStatus::Open, DoorStatus::Closed, status, 1, 70.f);
+
+    ImGui::PopID();
+}
+
+/// ------------- PlayerHasEnergyRegenCondition -------------
+PlayerHasEnergyRegenCondition::PlayerHasEnergyRegenCondition(InputStream& stream)
+{
+    stream >> regeneration >> comp;
+}
+void PlayerHasEnergyRegenCondition::serialize(OutputStream& stream) const
+{
+    Condition::serialize(stream);
+
+    stream << regeneration << comp;
+}
+bool PlayerHasEnergyRegenCondition::check() const
+{
+    const auto player = GW::Agents::GetControlledCharacter();
+    if (!player) return false;
+
+    const auto pips = (int)std::round(3.f / 0.99f * player->energy_regen * player->max_energy);
+    return compare(pips, comp, regeneration);
+}
+void PlayerHasEnergyRegenCondition::drawSettings()
+{
+    ImGui::PushID(drawId());
+
+    ImGui::Text("If player energy regeneration");
+    ImGui::SameLine();
+    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    ImGui::SameLine();
+    ImGui::PushItemWidth(40.f);
+    ImGui::InputInt("", &regeneration, 0);
+    ImGui::PopItemWidth();
 
     ImGui::PopID();
 }
