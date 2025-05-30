@@ -1145,6 +1145,7 @@ void SendChatAction::drawSettings()
     ImGui::SameLine();
     ImGui::InputText("", &message);
     ImGui::PopItemWidth();
+    ImGui::ShowHelp("$VARIABLENAME will get replaced with the current value of a variable.");
 
     ImGui::PopID();
 }
