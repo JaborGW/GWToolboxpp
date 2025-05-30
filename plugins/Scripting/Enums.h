@@ -30,6 +30,7 @@ enum class DoorStatus {Open, Closed };
 enum class Area { Urgoz, Deep, Doa }; // Some Door IDs are duplicated between areas
 enum class DoaZone: uint32_t { Foundry = 0x273F, Veil, Gloom, City };
 enum class MovementDirection : uint32_t { Forwards, Left, Right, Backwards };
+enum class IdRestriction{ Any, SpecificId };
 
 enum class ActionBehaviourFlag : uint32_t 
 {

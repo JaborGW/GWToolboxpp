@@ -428,6 +428,17 @@ std::string_view toString(MovementDirection direction)
     return "";
 }
 
+std::string_view toString(IdRestriction restriction)
+{
+    switch (restriction) {
+        case IdRestriction::Any:
+            return "Any ID";
+        case IdRestriction::SpecificId:
+            return "Specific ID";
+    }
+    return "";
+}
+
 std::string_view toString(Bag bag) 
 {
     switch (bag) 

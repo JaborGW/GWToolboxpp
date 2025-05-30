@@ -290,6 +290,8 @@ public:
 
 private:
     IsIsNot comp = IsIsNot::Is;
+    IdRestriction idRestrictionType = IdRestriction::Any;
+    int idRestriction = 0;
 };
 
 class NegationCharacteristic : public Characteristic {

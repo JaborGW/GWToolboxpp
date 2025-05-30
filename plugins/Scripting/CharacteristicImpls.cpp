@@ -615,23 +615,40 @@ void AngleToCameraForwardCharacteristic::drawSettings()
     ImGui::PopItemWidth();
 }
 /// ------------- IsStoredTargetCharacteristic -------------
-IsStoredTargetCharacteristic::IsStoredTargetCharacteristic(InputStream&)
+IsStoredTargetCharacteristic::IsStoredTargetCharacteristic(InputStream& stream)
 {
+    stream >> comp >> idRestrictionType >> idRestriction;
 }
 void IsStoredTargetCharacteristic::serialize(OutputStream& stream) const
 {
     Characteristic::serialize(stream);
+
+    stream << comp << idRestrictionType << idRestriction;
 }
 bool IsStoredTargetCharacteristic::check(const GW::AgentLiving& agent) const
 {
-    const auto actual = InstanceInfo::getInstance().isStoredTarget(agent);
-    return actual == (comp == IsIsNot::Is);
+    const auto& instanceInfo = InstanceInfo::getInstance();
+    const auto actual = instanceInfo.isStoredTarget(agent);
+    const auto fulfillsStoredTargetReq = actual == (comp == IsIsNot::Is);
+    if (idRestrictionType == IdRestriction::Any || !fulfillsStoredTargetReq) return fulfillsStoredTargetReq;
+
+    const auto stored = instanceInfo.retrieveTarget(idRestriction);
+    return stored && stored->agent_id == agent.agent_id;
 }
 void IsStoredTargetCharacteristic::drawSettings()
 {
     drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
     ImGui::SameLine();
-    ImGui::Text("stored target");
+    ImGui::Text("stored target with");
+    ImGui::SameLine();
+    drawEnumButton(IdRestriction::Any, IdRestriction::SpecificId, idRestrictionType, 1, 80.f);
+    if (idRestrictionType == IdRestriction::SpecificId) 
+    {
+        ImGui::SameLine();
+        ImGui::PushItemWidth(100.f);
+        ImGui::InputInt("id", &idRestriction, 0);
+        ImGui::PopItemWidth();
+    }
 }
 
 NegationCharacteristic::NegationCharacteristic(InputStream& stream)
@@ -667,7 +684,7 @@ void NegationCharacteristic::drawSettings()
     }
     else 
     {
-        characteristic = drawCharacteristicSelector(100.f);
+        characteristic = drawCharacteristicSelector(120.f);
     }
     ImGui::SameLine();
     ImGui::Text(")");
@@ -740,7 +757,7 @@ void DisjunctionCharacteristic::drawSettings()
         if (characteristics[i])
             characteristics[i]->drawSettings();
         else
-            characteristics[i] = drawCharacteristicSelector(100.f);
+            characteristics[i] = drawCharacteristicSelector(120.f);
 
         ImGui::PopID();
     }
@@ -822,7 +839,7 @@ void ConjunctionCharacteristic::drawSettings()
         if (characteristics[i])
             characteristics[i]->drawSettings();
         else
-            characteristics[i] = drawCharacteristicSelector(100.f);
+            characteristics[i] = drawCharacteristicSelector(120.f);
 
         ImGui::PopID();
     }
