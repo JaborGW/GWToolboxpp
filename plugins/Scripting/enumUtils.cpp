@@ -439,6 +439,43 @@ std::string_view toString(IdRestriction restriction)
     return "";
 }
 
+std::string_view toString(SkillType type)
+{
+    switch (type) {
+        case SkillType::Any:
+            return "Anything";
+        case SkillType::Spell:
+            return "Spell";
+        case SkillType::Signet:
+            return "Signet";
+        case SkillType::Well:
+            return "Well";
+        case SkillType::Skill:
+            return "Skill";
+        case SkillType::Ward:
+            return "Ward";
+        case SkillType::Glyph:
+            return "Glpyh";
+        case SkillType::Attack:
+            return "Attack";
+        case SkillType::Preparation:
+            return "Preperation";
+        case SkillType::Trap:
+            return "Trap";
+        case SkillType::Ritual:
+            return "Ritual";
+        case SkillType::WeaponSpell:
+            return "WeaponSpell";
+        case SkillType::Chant:
+            return "Chant";
+        case SkillType::Hex:
+            return "Hex";
+        case SkillType::Enchantment:
+            return "Enchantment";
+    }
+    return "";
+}
+
 std::string_view toString(Bag bag) 
 {
     switch (bag) 

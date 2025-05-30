@@ -31,6 +31,7 @@ enum class Area { Urgoz, Deep, Doa }; // Some Door IDs are duplicated between ar
 enum class DoaZone: uint32_t { Foundry = 0x273F, Veil, Gloom, City };
 enum class MovementDirection : uint32_t { Forwards, Left, Right, Backwards };
 enum class IdRestriction{ Any, SpecificId };
+enum class SkillType { Any, Spell, Signet, Well, Skill, Ward, Glyph, Attack, Preparation, Trap, Ritual, WeaponSpell, Chant, Hex, Enchantment };
 
 enum class ActionBehaviourFlag : uint32_t 
 {
