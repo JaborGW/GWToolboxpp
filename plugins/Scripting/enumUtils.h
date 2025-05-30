@@ -48,6 +48,7 @@ std::string_view toString(DoorStatus);
 std::string_view toString(DoaZone);
 std::string_view toString(MovementDirection);
 std::string_view toString(IdRestriction);
+std::string_view toString(SkillType);
 
 bool checkWeaponType(WeaponType, uint16_t);
 void drawHotkeySelector(Hotkey& hotkey, std::string& description, float selectorWidth);

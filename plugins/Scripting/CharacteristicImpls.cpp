@@ -13,6 +13,7 @@
 #include <GWCA/Managers/EffectMgr.h>
 #include <GWCA/Managers/PartyMgr.h>
 #include <GWCA/Managers/CameraMgr.h>
+#include <GWCA/Managers/SkillbarMgr.h>
 
 #include <ImGuiCppWrapper.h>
 
@@ -47,6 +48,45 @@ namespace {
             const auto forwards = GW::Normalize(removeZ(camera->look_at_target - camera->position));
             const auto toTarget = GW::Normalize(GW::Vec2f{positionedAgent.pos.x - centerAgent.pos.x, positionedAgent.pos.y - centerAgent.pos.y});
             return angleBetweenNormalizedVectors(forwards, toTarget) * radiansToDegree;
+        }
+    }
+
+    bool skillTypeMatches(SkillType conditioned, GW::Constants::SkillType actual) 
+    {
+        switch (conditioned) 
+        {
+            case SkillType::Any:
+                return true;
+            case SkillType::Spell:
+                return actual == GW::Constants::SkillType::Spell;
+            case SkillType::Signet:
+                return actual == GW::Constants::SkillType::Signet;
+            case SkillType::Well:
+                return actual == GW::Constants::SkillType::Well;
+            case SkillType::Skill:
+                return actual == GW::Constants::SkillType::Skill || actual == GW::Constants::SkillType::Skill2;
+            case SkillType::Ward:
+                return actual == GW::Constants::SkillType::Ward;
+            case SkillType::Glyph:
+                return actual == GW::Constants::SkillType::Glyph;
+            case SkillType::Attack:
+                return actual == GW::Constants::SkillType::Attack;
+            case SkillType::Preparation:
+                return actual == GW::Constants::SkillType::Preparation;
+            case SkillType::Trap:
+                return actual == GW::Constants::SkillType::Trap;
+            case SkillType::Ritual:
+                return actual == GW::Constants::SkillType::Ritual;
+            case SkillType::WeaponSpell:
+                return actual == GW::Constants::SkillType::WeaponSpell;
+            case SkillType::Chant:
+                return actual == GW::Constants::SkillType::Chant;
+            case SkillType::Hex:
+                return actual == GW::Constants::SkillType::Hex;
+            case SkillType::Enchantment:
+                return actual == GW::Constants::SkillType::Enchantment;
+            default:
+                return false;
         }
     }
 }
@@ -454,13 +494,13 @@ void AllegianceCharacteristic::drawSettings()
 /// ------------- StatusCharacteristic -------------
 StatusCharacteristic::StatusCharacteristic(InputStream& stream)
 {
-    stream >> status >> comp;
+    stream >> status >> comp >> skillType;
 }
 void StatusCharacteristic::serialize(OutputStream& stream) const
 {
     Characteristic::serialize(stream);
 
-    stream << status << comp;
+    stream << status << comp << skillType;
 }
 bool StatusCharacteristic::check(const GW::AgentLiving& agent) const
 {
@@ -490,8 +530,18 @@ bool StatusCharacteristic::check(const GW::AgentLiving& agent) const
                 return agent.GetIsMoving();
             case Status::Attacking:
                 return agent.GetIsAttacking();
-            case Status::Casting:
-                return agent.GetIsCasting();
+            case Status::Casting: 
+            {
+                if (skillType == SkillType::Any)
+                    return agent.GetIsCasting();
+                else
+                {
+                    if (!agent.GetIsCasting() || agent.skill == 0) 
+                        return false;
+                    const auto type = GW::SkillbarMgr::GetSkillConstantData((GW::Constants::SkillID)agent.skill)->type;
+                    return skillTypeMatches(skillType, type);
+                }
+            }    
             default:
                 return false;
         }
@@ -505,6 +555,11 @@ void StatusCharacteristic::drawSettings()
     drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
     ImGui::SameLine();
     drawEnumButton(Status::Enchanted, Status::Casting, status, 1);
+    if (status == Status::Casting) 
+    {
+        ImGui::SameLine();
+        drawEnumButton(SkillType::Any, SkillType::Enchantment, skillType, 2);
+    }
 }
 
 /// ------------- SkillCharacteristic -------------

@@ -216,6 +216,7 @@ public:
 private:
     Status status = Status::Alive;
     IsIsNot comp = IsIsNot::Is;
+    SkillType skillType = SkillType::Any;
 };
 
 class SkillCharacteristic : public Characteristic {
