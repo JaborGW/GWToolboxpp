@@ -291,3 +291,45 @@ public:
 private:
     IsIsNot comp = IsIsNot::Is;
 };
+
+class NegationCharacteristic : public Characteristic {
+public:
+    NegationCharacteristic() = default;
+    NegationCharacteristic(InputStream&);
+    void serialize(OutputStream&) const final;
+
+    CharacteristicType type() const final { return CharacteristicType::Not; }
+    bool check(const GW::AgentLiving& agent) const final;
+    void drawSettings() final;
+
+private:
+    CharacteristicPtr characteristic;
+};
+
+class DisjunctionCharacteristic : public Characteristic {
+public:
+    DisjunctionCharacteristic();
+    DisjunctionCharacteristic(InputStream&);
+    void serialize(OutputStream&) const final;
+
+    CharacteristicType type() const final { return CharacteristicType::Or; }
+    bool check(const GW::AgentLiving& agent) const final;
+    void drawSettings() final;
+
+private:
+    std::vector<CharacteristicPtr> characteristics;
+};
+
+class ConjunctionCharacteristic : public Characteristic {
+public:
+    ConjunctionCharacteristic();
+    ConjunctionCharacteristic(InputStream&);
+    void serialize(OutputStream&) const final;
+
+    CharacteristicType type() const final { return CharacteristicType::And; }
+    bool check(const GW::AgentLiving& agent) const final;
+    void drawSettings() final;
+
+private:
+    std::vector<CharacteristicPtr> characteristics;
+};

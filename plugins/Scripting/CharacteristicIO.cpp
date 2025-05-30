@@ -6,7 +6,7 @@
 namespace {
     std::string_view toString(CharacteristicType type)
     {
-        static_assert((int)CharacteristicType::Count == 19);
+        static_assert((int)CharacteristicType::Count == 22);
         switch (type) {
             case CharacteristicType::Position:
                 return "Position";
@@ -46,6 +46,12 @@ namespace {
                 return "Angle to camera forward";
             case CharacteristicType::IsStoredTarget:
                 return "Is stored target";
+            case CharacteristicType::Not:
+                return "Not";
+            case CharacteristicType::And:
+                return "And";
+            case CharacteristicType::Or:
+                return "Or";
             default:
                 return "";
         }
@@ -54,7 +60,7 @@ namespace {
 
 CharacteristicPtr makeCharacteristic(CharacteristicType type)
 {
-    static_assert((int)CharacteristicType::Count == 19);
+    static_assert((int)CharacteristicType::Count == 22);
     switch (type) {
         case CharacteristicType::Position:
             return std::make_unique<PositionCharacteristic>();
@@ -94,6 +100,12 @@ CharacteristicPtr makeCharacteristic(CharacteristicType type)
             return std::make_unique<AngleToCameraForwardCharacteristic>();
         case CharacteristicType::IsStoredTarget:
             return std::make_unique<IsStoredTargetCharacteristic>();
+        case CharacteristicType::Not:
+            return std::make_unique<NegationCharacteristic>();
+        case CharacteristicType::And:
+            return std::make_unique<ConjunctionCharacteristic>();
+        case CharacteristicType::Or:
+            return std::make_unique<DisjunctionCharacteristic>();
         default:
             return nullptr;
     }
@@ -101,7 +113,7 @@ CharacteristicPtr makeCharacteristic(CharacteristicType type)
 
 CharacteristicPtr readCharacteristic(InputStream& stream)
 {
-    static_assert((int)CharacteristicType::Count == 19);
+    static_assert((int)CharacteristicType::Count == 22);
     int type;
     stream >> type;
     switch (static_cast<CharacteristicType>(type)) {
@@ -143,6 +155,12 @@ CharacteristicPtr readCharacteristic(InputStream& stream)
             return std::make_unique<AngleToCameraForwardCharacteristic>(stream);
         case CharacteristicType::IsStoredTarget:
             return std::make_unique<IsStoredTargetCharacteristic>(stream);
+        case CharacteristicType::Not:
+            return std::make_unique<NegationCharacteristic>(stream);
+        case CharacteristicType::And:
+            return std::make_unique<ConjunctionCharacteristic>(stream);
+        case CharacteristicType::Or:
+            return std::make_unique<DisjunctionCharacteristic>(stream);
         default:
             return nullptr;
     }
@@ -171,12 +189,14 @@ std::optional<CharacteristicType> drawCharacteristicSubMenu(std::unordered_set<C
     constexpr auto hpCharacteristics = std::array{CharacteristicType::HP, CharacteristicType::HPRegen};
     constexpr auto skillCharacteristics = std::array{CharacteristicType::Skill, CharacteristicType::Bond};
     constexpr auto propertyCharacteristics = std::array{CharacteristicType::Model, CharacteristicType::Class, CharacteristicType::Name, CharacteristicType::Speed, CharacteristicType::WeaponType, CharacteristicType::IsStoredTarget};
+    constexpr auto logicCharacteristics = std::array{CharacteristicType::Not, CharacteristicType::And, CharacteristicType::Or};
 
     drawSubMenu("Position", positionCharacteristics);
     drawSubMenu("Angle", angleCharacteristics);
     drawSubMenu("Health", hpCharacteristics);
     drawSubMenu("Skill", skillCharacteristics);
     drawSubMenu("Properties", propertyCharacteristics);
+    drawSubMenu("Logic", logicCharacteristics);
     drawCharacteristicSelector(CharacteristicType::Status);
     drawCharacteristicSelector(CharacteristicType::Allegiance);
 

@@ -2,6 +2,7 @@
 
 #include <enumUtils.h>
 #include <InstanceInfo.h>
+#include <CharacteristicIO.h>
 
 #include <GWCA/GameEntities/Agent.h>
 #include <GWCA/GameEntities/Party.h>
@@ -17,6 +18,8 @@
 
 namespace {
     constexpr float eps = 1e-3f;
+    const std::string missingContentToken = "/";
+    constexpr float indent = 30.f;
 
     int GetHealthRegenPips(const GW::AgentLiving& agent)
     {
@@ -629,4 +632,207 @@ void IsStoredTargetCharacteristic::drawSettings()
     drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
     ImGui::SameLine();
     ImGui::Text("stored target");
+}
+
+NegationCharacteristic::NegationCharacteristic(InputStream& stream)
+{
+    std::string token;
+    stream >> token;
+    characteristic = (token == "X") ? readCharacteristic(stream) : nullptr;
+    stream.proceedPastSeparator(3);
+}
+void NegationCharacteristic::serialize(OutputStream& stream) const
+{
+    Characteristic::serialize(stream);
+
+    if (characteristic)
+        characteristic->serialize(stream);
+    else
+        stream << missingContentToken;
+
+    stream.writeSeparator(3);
+}
+bool NegationCharacteristic::check(const GW::AgentLiving& agent) const
+{
+    if (!agent.GetIsLivingType() || !characteristic) return false;
+    return !characteristic->check(*agent.GetAsAgentLiving());
+}
+void NegationCharacteristic::drawSettings()
+{
+    ImGui::Text("NOT (");
+    ImGui::SameLine();
+    if (characteristic) 
+    {
+        characteristic->drawSettings();
+    }
+    else 
+    {
+        characteristic = drawCharacteristicSelector(100.f);
+    }
+    ImGui::SameLine();
+    ImGui::Text(")");
+}
+
+/// ------------- DisjunctionCharacteristic -------------
+DisjunctionCharacteristic::DisjunctionCharacteristic()
+{
+    // Adds an empty entry to save a click when creating a new condition
+    characteristics.push_back(nullptr);
+}
+DisjunctionCharacteristic::DisjunctionCharacteristic(InputStream& stream)
+{
+    while (stream) {
+        std::string token;
+        stream >> token;
+        if (token == "X") {
+            if (auto characteristic = readCharacteristic(stream))
+                characteristics.push_back(std::move(characteristic));
+            else
+                break;
+            stream.proceedPastSeparator(3);
+        }
+        else if (token == missingContentToken) {
+            characteristics.push_back(nullptr);
+            stream.proceedPastSeparator(3);
+        }
+        else {
+            break;
+        }
+    }
+}
+void DisjunctionCharacteristic::serialize(OutputStream& stream) const
+{
+    Characteristic::serialize(stream);
+
+    for (const auto& c : characteristics) {
+        if (c)
+            c->serialize(stream);
+        else
+            stream << missingContentToken;
+
+        stream.writeSeparator(3);
+    }
+}
+bool DisjunctionCharacteristic::check(const GW::AgentLiving& agent) const
+{
+    return std::ranges::any_of(characteristics, [&agent](const auto& c) {
+        return c && c->check(agent);
+    });
+}
+void DisjunctionCharacteristic::drawSettings()
+{
+    ImGui::Text("fulfills ANY of the following:");
+    ImGui::Indent(indent);
+
+    int rowToDelete = -1;
+    for (int i = 0; i < int(characteristics.size()); ++i) {
+        ImGui::PushID(i);
+
+        ImGui::Bullet();
+        if (ImGui::Button("X")) {
+            if (characteristics[i])
+                characteristics[i] = nullptr;
+            else
+                rowToDelete = i;
+        }
+
+        ImGui::SameLine();
+        if (characteristics[i])
+            characteristics[i]->drawSettings();
+        else
+            characteristics[i] = drawCharacteristicSelector(100.f);
+
+        ImGui::PopID();
+    }
+    if (rowToDelete != -1) characteristics.erase(characteristics.begin() + rowToDelete);
+
+    ImGui::Bullet();
+    if (ImGui::Button("+")) {
+        characteristics.push_back(nullptr);
+    }
+
+    ImGui::Unindent(indent);
+    ImGui::PopID();
+}
+
+/// ------------- ConjunctionCharacteristic -------------
+ConjunctionCharacteristic::ConjunctionCharacteristic()
+{
+    // Adds an empty entry to save a click when creating a new condition
+    characteristics.push_back(nullptr);
+}
+ConjunctionCharacteristic::ConjunctionCharacteristic(InputStream& stream)
+{
+    while (stream) {
+        std::string token;
+        stream >> token;
+        if (token == "X") {
+            if (auto characteristic = readCharacteristic(stream))
+                characteristics.push_back(std::move(characteristic));
+            else
+                break;
+            stream.proceedPastSeparator(3);
+        }
+        else if (token == missingContentToken) {
+            characteristics.push_back(nullptr);
+            stream.proceedPastSeparator(3);
+        }
+        else {
+            break;
+        }
+    }
+}
+void ConjunctionCharacteristic::serialize(OutputStream& stream) const
+{
+    Characteristic::serialize(stream);
+
+    for (const auto& c : characteristics) {
+        if (c)
+            c->serialize(stream);
+        else
+            stream << missingContentToken;
+
+        stream.writeSeparator(3);
+    }
+}
+bool ConjunctionCharacteristic::check(const GW::AgentLiving& agent) const
+{
+    return std::ranges::all_of(characteristics, [&agent](const auto& c) {
+        return !c || c->check(agent);
+    });
+}
+void ConjunctionCharacteristic::drawSettings()
+{
+    ImGui::Text("fulfills ALL of the following:");
+    ImGui::Indent(indent);
+
+    int rowToDelete = -1;
+    for (int i = 0; i < int(characteristics.size()); ++i) {
+        ImGui::PushID(i);
+
+        ImGui::Bullet();
+        if (ImGui::Button("X")) {
+            if (characteristics[i])
+                characteristics[i] = nullptr;
+            else
+                rowToDelete = i;
+        }
+
+        ImGui::SameLine();
+        if (characteristics[i])
+            characteristics[i]->drawSettings();
+        else
+            characteristics[i] = drawCharacteristicSelector(100.f);
+
+        ImGui::PopID();
+    }
+    if (rowToDelete != -1) characteristics.erase(characteristics.begin() + rowToDelete);
+
+    ImGui::Bullet();
+    if (ImGui::Button("+")) {
+        characteristics.push_back(nullptr);
+    }
+
+    ImGui::Unindent(indent);
+    ImGui::PopID();
 }
