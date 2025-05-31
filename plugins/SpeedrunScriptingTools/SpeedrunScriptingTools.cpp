@@ -369,7 +369,10 @@ namespace {
         });
     }
 
-    void drawConditionSetSelector(std::vector<ConditionPtr>& conditions) {
+    bool drawConditionSetSelector(std::vector<ConditionPtr>& conditions) 
+    {
+        bool refreshDisabledKeys = false;
+
         using ConditionIt = decltype(conditions.begin());
         std::optional<ConditionIt> conditionToDelete = std::nullopt;
         std::optional<std::pair<ConditionIt, ConditionIt>> conditionsToSwap = std::nullopt;
@@ -387,7 +390,7 @@ namespace {
                     if (it + 1 != conditions.end()) conditionsToSwap = {it, it + 1};
                 }
             ImGui::SameLine();
-            (*it)->drawSettings();
+            refreshDisabledKeys |= (*it)->drawSettings();
             ImGui::PopID();
         }
         if (conditionToDelete.has_value()) conditions.erase(conditionToDelete.value());
@@ -396,6 +399,8 @@ namespace {
         if (auto newCondition = drawConditionSelector(ImGui::GetContentRegionAvail().x)) {
             conditions.push_back(std::move(newCondition));
         }
+
+        return refreshDisabledKeys;
     }
     void drawActionSequenceSelector(std::vector<ActionPtr>& actions) {
         using ActionIt = decltype(actions.begin());
@@ -435,7 +440,10 @@ namespace {
     };
 
     // Groups are passed for the names
-    std::optional<ScriptMoveAction> drawScriptSetSelector(std::vector<Script>& scripts, const std::vector<Group>& groups, std::optional<int> groupIndex) {
+    std::tuple<std::optional<ScriptMoveAction>, bool> drawScriptSetSelector(std::vector<Script>& scripts, const std::vector<Group>& groups, std::optional<int> groupIndex) 
+    {
+        bool disabledKeysChanged = false;
+
         using ScriptIt = decltype(scripts.begin());
         std::optional<ScriptIt> scriptToDelete = std::nullopt;
         std::optional<std::pair<ScriptIt, ScriptIt>> scriptsToSwap = std::nullopt;
@@ -477,7 +485,7 @@ namespace {
 
             if (treeOpen) {
                 ImGui::PushID(0);
-                drawConditionSetSelector(scriptIt->conditions);
+                disabledKeysChanged |= drawConditionSetSelector(scriptIt->conditions);
                 ImGui::PopID();
                 ImGui::Separator();
                 ImGui::PushID(1);
@@ -487,7 +495,7 @@ namespace {
                 ImGui::PushID(2);
                 // Script settings
                 ImGui::Separator();
-                ImGui::Checkbox("Enabled", &scriptIt->enabled);
+                disabledKeysChanged |= ImGui::Checkbox("Enabled", &scriptIt->enabled);
                 ImGui::SameLine();
 
                 auto description = scriptIt->enabledToggleHotkey.keyData ? makeHotkeyDescription(scriptIt->enabledToggleHotkey) : "Set enable toggle";
@@ -538,11 +546,12 @@ namespace {
         if (scriptToDelete.has_value()) scripts.erase(scriptToDelete.value());
         if (scriptsToSwap.has_value()) std::swap(*scriptsToSwap->first, *scriptsToSwap->second);
 
-        return result;
+        return {result, disabledKeysChanged};
     }
 
-    std::optional<ScriptMoveAction> drawGroups(std::vector<Group>& groups)
+    std::tuple<std::optional<ScriptMoveAction>, bool> drawGroups(std::vector<Group>& groups)
     {
+        bool disabledKeysChanged = false;
         using GroupIt = decltype(groups.begin());
         std::optional<GroupIt> groupToDelete = std::nullopt;
         std::optional<std::pair<GroupIt, GroupIt>> groupsToSwap = std::nullopt;
@@ -574,15 +583,17 @@ namespace {
                 ImGui::PopID();
                 if (groupIt->scripts.size() > 0) ImGui::Separator();
                 ImGui::PushID(1);
-                if (const auto action = drawScriptSetSelector(groupIt->scripts, groups, groupIt-groups.begin()))
+                const auto [action, scriptDisabledKeysChanged] = drawScriptSetSelector(groupIt->scripts, groups, groupIt - groups.begin());
+                if (action)
                 {
                     result = *action;
                 }
+                disabledKeysChanged |= scriptDisabledKeysChanged;
                 ImGui::PopID();
 
                 // Group settings
                 ImGui::Separator();
-                ImGui::Checkbox("Enabled", &groupIt->enabled);
+                disabledKeysChanged |= ImGui::Checkbox("Enabled", &groupIt->enabled);
                 ImGui::SameLine();
                 if (ImGui::Button("Copy group", ImVec2(150, 0))) 
                 {
@@ -605,7 +616,7 @@ namespace {
         if (groupToDelete.has_value()) groups.erase(groupToDelete.value());
         if (groupsToSwap.has_value()) std::swap(*groupsToSwap->first, *groupsToSwap->second);
 
-        return result;
+        return {result, disabledKeysChanged};
     }
 }
 
@@ -622,6 +633,32 @@ void SpeedrunScriptingTools::clear()
         script.triggered = false;
 }
 
+void SpeedrunScriptingTools::refreshDisabledKeys() 
+{
+    std::unordered_set<Hotkey> newDisabledKeys;
+    const auto aggregrateFromScript = [&](const std::vector<Script>& scripts) 
+    {
+        for (const auto& script : scripts) 
+        {
+            if (!script.enabled) continue;
+            for (const auto& condition : script.conditions) 
+            {
+                if (!condition) continue;
+                const auto disabledKeys = condition->disabledKeys();
+                for (const auto& key : disabledKeys)
+                    newDisabledKeys.insert(key);
+            }
+        }
+    };
+    for (const auto& group : m_groups) 
+    {
+        if (!group.enabled) continue;
+        aggregrateFromScript(group.scripts);
+    }
+    aggregrateFromScript(m_scripts);
+    disabledKeys = std::move(newDisabledKeys);
+}
+
 void SpeedrunScriptingTools::DrawSettings()
 {
     ToolboxPlugin::DrawSettings();
@@ -631,7 +668,7 @@ void SpeedrunScriptingTools::DrawSettings()
     }
 
     ImGui::PushID(0);
-    const auto groupAction = drawGroups(m_groups);
+    const auto [groupAction, groupDisabledKeysChanged] = drawGroups(m_groups);
     ImGui::PopID();
 
     if (m_groups.size() > 0) {
@@ -641,7 +678,7 @@ void SpeedrunScriptingTools::DrawSettings()
     }
 
     ImGui::PushID(1);
-    const auto scriptAction = drawScriptSetSelector(m_scripts, m_groups, std::nullopt);
+    const auto [scriptAction, scriptDisabledKeysChanged] = drawScriptSetSelector(m_scripts, m_groups, std::nullopt);
     ImGui::PopID();
 
     if (m_scripts.size() > 0) {
@@ -739,6 +776,7 @@ void SpeedrunScriptingTools::DrawSettings()
 
     executeScriptMoveAction(groupAction);
     executeScriptMoveAction(scriptAction);
+    if (groupDisabledKeysChanged || scriptDisabledKeysChanged) refreshDisabledKeys();
 }
 
 void SpeedrunScriptingTools::loadFromIniFile(const wchar_t* file)
@@ -780,6 +818,7 @@ void SpeedrunScriptingTools::loadFromIniFile(const wchar_t* file)
                 break;
         }
     }
+    refreshDisabledKeys();
 }
 void SpeedrunScriptingTools::LoadSettings(const wchar_t* folder)
 {
@@ -1049,7 +1088,7 @@ bool SpeedrunScriptingTools::WndProc(const UINT Message, const WPARAM wParam, LP
             }
             enableScripts(m_scripts);
         
-            if (InstanceInfo::getInstance().keyIsDisabled(pressedKey)) return true;
+            if (disabledKeys.contains(pressedKey)) return true;
             return triggered;
         }
 

@@ -69,6 +69,7 @@ public:
 
 private:
     void clear();
+    void refreshDisabledKeys();
 
     std::vector<Group> m_groups;
     std::vector<Script> m_scripts;
@@ -78,4 +79,7 @@ private:
     bool isInLoadingScreen = false;
     int framesSinceLoadingFinished = 0;
     Hotkey clearScriptsKey{};
+
+    // Not serialized, derived from scripts at runtime.
+    std::unordered_set<Hotkey> disabledKeys;
 };

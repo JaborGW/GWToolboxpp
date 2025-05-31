@@ -904,8 +904,10 @@ std::string makeHotkeyDescription(Hotkey hotkey)
     return std::string{newDescription};
 }
 
-void drawHotkeySelector(Hotkey& hotkey, std::string& description, float selectorWidth)
+bool drawHotkeySelector(Hotkey& hotkey, std::string& description, float selectorWidth)
 {
+    bool keyChanged = false;
+
     ImGui::PushItemWidth(selectorWidth);
     if (ImGui::Button(description.c_str())) {
         ImGui::OpenPopup("Select Hotkey");
@@ -943,6 +945,7 @@ void drawHotkeySelector(Hotkey& hotkey, std::string& description, float selector
             }
         }
         else if (!(::GetKeyState(newkey) & 0x8000)) { // We have a key, check if it was released
+            keyChanged = true;
             hotkey.keyData = newkey;
             hotkey.modifier = newmod;
             description = makeHotkeyDescription(hotkey);
@@ -956,6 +959,8 @@ void drawHotkeySelector(Hotkey& hotkey, std::string& description, float selector
         ImGui::EndPopup();
     }
     ImGui::PopItemWidth();
+
+    return keyChanged;
 }
 
 void drawTriggerSelector(Trigger& trigger, TriggerData& triggerData, [[maybe_unused]] float width)

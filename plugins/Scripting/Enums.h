@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector> // For std::hash
 
 namespace GW::Constants {
     enum class SkillID : uint32_t;
@@ -73,6 +74,18 @@ struct Hotkey
     long keyData = 0;
     long modifier = 0;
     bool operator==(const Hotkey&) const = default;
+};
+
+template <>
+struct std::hash<Hotkey> {
+    std::size_t operator()(const Hotkey& key) const
+    {
+        const auto hasher = std::hash<long>{};
+        auto hash = hasher(key.keyData);
+        // Taken from boost::hash_combine
+        hash ^= hasher(key.modifier) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        return hash;
+    }
 };
 
 struct TriggerData 
