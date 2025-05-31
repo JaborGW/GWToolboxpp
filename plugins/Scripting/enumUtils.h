@@ -51,7 +51,8 @@ std::string_view toString(IdRestriction);
 std::string_view toString(SkillType);
 
 bool checkWeaponType(WeaponType, uint16_t);
-void drawHotkeySelector(Hotkey& hotkey, std::string& description, float selectorWidth);
+// @returns true if the hotkey was edited
+bool drawHotkeySelector(Hotkey& hotkey, std::string& description, float selectorWidth);
 std::string makeHotkeyDescription(Hotkey);
 std::string getSkillName(GW::Constants::SkillID id, bool zeroIsAny);
 

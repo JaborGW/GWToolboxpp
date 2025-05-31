@@ -31,6 +31,7 @@
 #include <Keys.h>
 #include "ImGuiCppWrapper.h"
 #include <algorithm>
+#include <ranges>
 
 namespace {
     constexpr double eps = 1e-3;
@@ -184,13 +185,15 @@ bool NegatedCondition::check() const
 {
     return cond && !cond->check();
 }
-void NegatedCondition::drawSettings()
+bool NegatedCondition::drawSettings()
 {
+    bool updatedKeyToDisable = false;
+
     ImGui::PushID(drawId());
     ImGui::Text("NOT (");
     ImGui::SameLine();
     if (cond) {
-        cond->drawSettings();
+        updatedKeyToDisable |= cond->drawSettings();
     }
     else {
         cond = drawConditionSelector(100.f);
@@ -198,6 +201,12 @@ void NegatedCondition::drawSettings()
     ImGui::SameLine();
     ImGui::Text(")");
     ImGui::PopID();
+
+    return updatedKeyToDisable;
+}
+std::vector<Hotkey> NegatedCondition::disabledKeys() const 
+{
+    return cond ? cond->disabledKeys() : std::vector<Hotkey>{};
 }
 
 /// ------------- DisjunctionCondition -------------
@@ -246,8 +255,10 @@ bool DisjunctionCondition::check() const
 {
     return std::ranges::any_of(conditions, [](const auto& condition) {return condition && condition->check();});
 }
-void DisjunctionCondition::drawSettings()
+bool DisjunctionCondition::drawSettings()
 {
+    bool updatedKeyToDisable = false;
+
     ImGui::PushID(drawId());
     ImGui::Text("If ANY of the following is true:");
     ImGui::Indent(indent);
@@ -266,7 +277,7 @@ void DisjunctionCondition::drawSettings()
 
         ImGui::SameLine();
         if (conditions[i])
-            conditions[i]->drawSettings();
+            updatedKeyToDisable |= conditions[i]->drawSettings();
         else
             conditions[i] = drawConditionSelector(100.f);
 
@@ -281,6 +292,22 @@ void DisjunctionCondition::drawSettings()
 
     ImGui::Unindent(indent);
     ImGui::PopID();
+
+    return updatedKeyToDisable;
+}
+std::vector<Hotkey> DisjunctionCondition::disabledKeys() const
+{
+    std::vector<Hotkey> result;
+
+    for (const auto& cond : conditions) {
+        if (!cond) continue;
+        for (const auto& disabled : cond->disabledKeys()) 
+        {
+            result.push_back(disabled);
+        }
+    }
+
+    return result;
 }
 
 /// ------------- ConjunctionCondition -------------
@@ -328,8 +355,10 @@ bool ConjunctionCondition::check() const
 {
     return std::ranges::all_of(conditions, [](const auto& condition) {return !condition || condition->check();});
 }
-void ConjunctionCondition::drawSettings()
+bool ConjunctionCondition::drawSettings()
 {
+    bool updatedKeyToDisable = false;
+
     ImGui::PushID(drawId());
     ImGui::Text("If ALL of the following is true:");
     ImGui::Indent(indent);
@@ -348,7 +377,7 @@ void ConjunctionCondition::drawSettings()
 
         ImGui::SameLine();
         if (conditions[i])
-            conditions[i]->drawSettings();
+            updatedKeyToDisable |= conditions[i]->drawSettings();
         else
             conditions[i] = drawConditionSelector(100.f);
 
@@ -363,6 +392,21 @@ void ConjunctionCondition::drawSettings()
 
     ImGui::Unindent(indent);
     ImGui::PopID();
+
+    return updatedKeyToDisable;
+}
+std::vector<Hotkey> ConjunctionCondition::disabledKeys() const
+{
+    std::vector<Hotkey> result;
+
+    for (const auto& cond : conditions) {
+        if (!cond) continue;
+        for (const auto& disabled : cond->disabledKeys()) {
+            result.push_back(disabled);
+        }
+    }
+
+    return result;
 }
 
 /// ------------- IsInMapCondition -------------
@@ -383,12 +427,14 @@ void IsInMapCondition::serialize(OutputStream& stream) const
 bool IsInMapCondition::check() const {
     return GW::Map::GetMapID() == id;
 }
-void IsInMapCondition::drawSettings() {
+bool IsInMapCondition::drawSettings() {
     ImGui::PushID(drawId());
     ImGui::Text("If player is in map");
     ImGui::SameLine();
     drawMapIDSelector(id);
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- PartyPlayerCountCondition -------------
@@ -406,7 +452,7 @@ bool PartyPlayerCountCondition::check() const
 {
     return compare(GW::PartyMgr::GetPartySize(), comp, (uint32_t)count);
 }
-void PartyPlayerCountCondition::drawSettings()
+bool PartyPlayerCountCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     ImGui::Text("If the party size");
@@ -417,6 +463,8 @@ void PartyPlayerCountCondition::drawSettings()
     ImGui::InputInt("", &count, 0);
     ImGui::PopItemWidth();
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- PartyHasLoadedInCondition -------------
@@ -440,7 +488,7 @@ bool PartyHasLoadedInCondition::check() const
     else
         return slot - 1 < (int)partyInfo->players.size() && partyInfo->players[slot - 1].connected();
 }
-void PartyHasLoadedInCondition::drawSettings()
+bool PartyHasLoadedInCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     ImGui::Text("If");
@@ -464,8 +512,9 @@ void PartyHasLoadedInCondition::drawSettings()
     ImGui::SameLine();
     ImGui::Text("has finished loading");
     
-    
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- InstanceProgressCondition -------------
@@ -483,7 +532,7 @@ bool InstanceProgressCondition::check() const
 {
     return compare(GW::GetGameContext()->character->progress_bar->progress * 100.f, comp, requiredProgress);
 }
-void InstanceProgressCondition::drawSettings()
+bool InstanceProgressCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     ImGui::Text("If the instance progress");
@@ -495,6 +544,8 @@ void InstanceProgressCondition::drawSettings()
     ImGui::InputFloat("%", &requiredProgress, 0);
     ImGui::PopItemWidth();
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- OnlyTriggerOnceCondition -------------
@@ -506,11 +557,13 @@ bool OnlyTriggerOnceCondition::check() const
     triggeredLastInInstanceId = currentInstanceId;
     return true;
 }
-void OnlyTriggerOnceCondition::drawSettings()
+bool OnlyTriggerOnceCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     ImGui::Text("If script has not been triggered in this instance");
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- PlayerHasBuffCondition -------------
@@ -536,7 +589,7 @@ bool PlayerHasBuffCondition::check() const
     if (hasMaximumDuration && effect->GetTimeRemaining() > DWORD(maximumDuration)) return false;
     return true;
 }
-void PlayerHasBuffCondition::drawSettings()
+bool PlayerHasBuffCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     ImGui::Text("If the player is affected by the skill");
@@ -579,6 +632,8 @@ void PlayerHasBuffCondition::drawSettings()
 
     ImGui::PopItemWidth();
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- PlayerHasSkillCondition -------------
@@ -617,7 +672,7 @@ bool PlayerHasSkillCondition::check() const
         return false;
     });
 }
-void PlayerHasSkillCondition::drawSettings()
+bool PlayerHasSkillCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     
@@ -630,6 +685,8 @@ void PlayerHasSkillCondition::drawSettings()
     ImGui::ShowHelp("'Ready to use' checks energy requirement, cooldown, adrenaline and weapon type.\r\nEnergy requirement only takes into account base cost, QZ, expertise and mysticism.");
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- PlayerHasSkillBySlotCondition -------------
@@ -669,7 +726,7 @@ bool PlayerHasSkillBySlotCondition::check() const
     }   
     return false;
 }
-void PlayerHasSkillBySlotCondition::drawSettings()
+bool PlayerHasSkillBySlotCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     ImGui::PushItemWidth(50.f);
@@ -686,6 +743,8 @@ void PlayerHasSkillBySlotCondition::drawSettings()
 
     ImGui::PopItemWidth();
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- PlayerHasEnergyCondition -------------
@@ -706,7 +765,7 @@ bool PlayerHasEnergyCondition::check() const
 
     return compare(player->energy * player->max_energy, comp, (float)energy);
 }
-void PlayerHasEnergyCondition::drawSettings()
+bool PlayerHasEnergyCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     ImGui::Text("If player energy");
@@ -717,6 +776,8 @@ void PlayerHasEnergyCondition::drawSettings()
     ImGui::InputInt("", &energy, 0);
     ImGui::PopItemWidth();
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- HasPartyWindowAllyOfNameCondition -------------
@@ -749,7 +810,7 @@ bool HasPartyWindowAllyOfNameCondition::check() const
         return instanceInfo.getDecodedAgentName(allyId) == name;
     });
 }
-void HasPartyWindowAllyOfNameCondition::drawSettings()
+bool HasPartyWindowAllyOfNameCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     ImGui::Text("If party window ally of name");
@@ -760,6 +821,8 @@ void HasPartyWindowAllyOfNameCondition::drawSettings()
     ImGui::SameLine();
     ImGui::Text("exists");
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- PartyMemberStatusCondition -------------
@@ -798,7 +861,7 @@ bool PartyMemberStatusCondition::check() const
 
     return false;
 }
-void PartyMemberStatusCondition::drawSettings()
+bool PartyMemberStatusCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     ImGui::Text("If party window ally is alive");
@@ -809,6 +872,8 @@ void PartyMemberStatusCondition::drawSettings()
     ImGui::InputText("Ally name", &name);
     ImGui::PopItemWidth();
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- QuestHasStateCondition -------------
@@ -827,7 +892,7 @@ bool QuestHasStateCondition::check() const
 {
     return InstanceInfo::getInstance().getObjectiveStatus(id) == status;
 }
-void QuestHasStateCondition::drawSettings()
+bool QuestHasStateCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     ImGui::Text("If the quest objective has status");
@@ -840,6 +905,8 @@ void QuestHasStateCondition::drawSettings()
     ImGui::ShowHelp("Objective ID, NOT quest ID!\nUW: Chamber 146, Restore 147, Escort 148, UWG 149, Vale 150, Waste 151, Pits 152, Planes 153, Mnts 154, Pools 155, Dhuum 157");
     ImGui::PopItemWidth();
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- KeyIsPressedCondition -------------
@@ -847,20 +914,12 @@ KeyIsPressedCondition::KeyIsPressedCondition(InputStream& stream)
 {
     stream >> shortcut.keyData >> shortcut.modifier >> blockKey;
     description = makeHotkeyDescription(shortcut);
-    if (shortcut.keyData && blockKey) 
-    {
-        InstanceInfo::getInstance().requestDisableKey(shortcut);
-    }
 }
 void KeyIsPressedCondition::serialize(OutputStream& stream) const
 {
     Condition::serialize(stream);
 
     stream << shortcut.keyData << shortcut.modifier << blockKey;
-}
-KeyIsPressedCondition::~KeyIsPressedCondition() 
-{
-    if (blockKey) InstanceInfo::getInstance().requestEnableKey(shortcut);
 }
 bool KeyIsPressedCondition::check() const
 {
@@ -872,32 +931,22 @@ bool KeyIsPressedCondition::check() const
 
     return keyIsPressed;
 }
-void KeyIsPressedCondition::drawSettings()
+bool KeyIsPressedCondition::drawSettings()
 {
+    bool blockedKeyChanged = false;
     ImGui::PushID(drawId());
     ImGui::Text("If key is held down:");
     ImGui::SameLine();
-    const auto oldKey = shortcut;
-    drawHotkeySelector(shortcut, description, 100.f);
-    if (const auto newKey = shortcut; blockKey && newKey != oldKey)
-    {
-        InstanceInfo::getInstance().requestEnableKey(oldKey);
-        InstanceInfo::getInstance().requestDisableKey(newKey);
-    }
+    blockedKeyChanged |= drawHotkeySelector(shortcut, description, 100.f);
     ImGui::SameLine();
-    
-    bool wasBlocking = blockKey;
-    ImGui::Checkbox("Block key", &blockKey);
-    if (wasBlocking && !blockKey) 
-    {
-        InstanceInfo::getInstance().requestEnableKey(shortcut);
-    }
-    else if (!wasBlocking && blockKey)
-    {
-        InstanceInfo::getInstance().requestDisableKey(shortcut);
-    }
-
+    blockedKeyChanged |= ImGui::Checkbox("Block key", &blockKey);
     ImGui::PopID();
+
+    return blockedKeyChanged;
+}
+std::vector<Hotkey> KeyIsPressedCondition::disabledKeys() const
+{
+    return (blockKey && shortcut.keyData) ? std::vector{shortcut} : std::vector<Hotkey>{};
 }
 
 /// ------------- InstanceTimeCondition -------------
@@ -915,7 +964,7 @@ bool InstanceTimeCondition::check() const
 {
     return compare((int)(GW::Map::GetInstanceTime() / 1000), comp, timeInSeconds);
 }
-void InstanceTimeCondition::drawSettings()
+bool InstanceTimeCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     ImGui::Text("If the instance time");
@@ -927,6 +976,8 @@ void InstanceTimeCondition::drawSettings()
     ImGui::InputInt("seconds", &timeInSeconds, 0);
     ImGui::PopItemWidth();
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- CanPopAgentCondition -------------
@@ -935,9 +986,10 @@ bool CanPopAgentCondition::check() const
 {
     return InstanceInfo::getInstance().canPopAgent();
 }
-void CanPopAgentCondition::drawSettings()
+bool CanPopAgentCondition::drawSettings()
 {
     ImGui::Text("If player can pop minipet or ghost in the box");
+    return false;
 }
 
 /// ------------- PlayerHasItemEquippedCondition -------------
@@ -955,7 +1007,7 @@ bool PlayerHasItemEquippedCondition::check() const
 {
     return FindMatchingItem(GW::Constants::Bag::Equipped_Items, modelId) != nullptr;
 }
-void PlayerHasItemEquippedCondition::drawSettings()
+bool PlayerHasItemEquippedCondition::drawSettings()
 {
     const auto item = FindMatchingItem(modelId);
     const auto itemName = item ? InstanceInfo::getInstance().getDecodedItemName(item->item_id) : "";
@@ -971,6 +1023,8 @@ void PlayerHasItemEquippedCondition::drawSettings()
     ImGui::PopItemWidth();
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- ItemInInventoryCondition -------------
@@ -989,7 +1043,7 @@ bool ItemInInventoryCondition::check() const
     const auto item = FindMatchingItem(modelId);
     return item && item->bag->bag_type == GW::Constants::BagType::Inventory;
 }
-void ItemInInventoryCondition::drawSettings()
+bool ItemInInventoryCondition::drawSettings()
 {
     const auto item = FindMatchingItem(modelId);
     const auto itemName = item ? InstanceInfo::getInstance().getDecodedItemName(item->item_id) : "";
@@ -1005,6 +1059,8 @@ void ItemInInventoryCondition::drawSettings()
     ImGui::PopItemWidth();
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- InstanceTypeCondition -------------
@@ -1022,7 +1078,7 @@ bool InstanceTypeCondition::check() const
 {
     return GW::Map::GetInstanceType() == instanceType;
 }
-void InstanceTypeCondition::drawSettings()
+bool InstanceTypeCondition::drawSettings()
 {
     ImGui::PushID(drawId());
 
@@ -1031,6 +1087,8 @@ void InstanceTypeCondition::drawSettings()
     drawEnumButton(GW::Constants::InstanceType::Outpost, GW::Constants::InstanceType::Explorable, instanceType);
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- RemainingCooldownCondition -------------
@@ -1060,7 +1118,7 @@ bool RemainingCooldownCondition::check() const
     }
     return false;
 }
-void RemainingCooldownCondition::drawSettings()
+bool RemainingCooldownCondition::drawSettings()
 {
     ImGui::PushID(drawId());
 
@@ -1102,6 +1160,8 @@ void RemainingCooldownCondition::drawSettings()
 
     ImGui::PopItemWidth();
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- FoeCountCondition -------------
@@ -1119,7 +1179,7 @@ bool FoeCountCondition::check() const
 {
     return compare((int)GW::Map::GetFoesToKill(), comp, count);
 }
-void FoeCountCondition::drawSettings()
+bool FoeCountCondition::drawSettings()
 {
     ImGui::PushID(drawId());
 
@@ -1132,6 +1192,8 @@ void FoeCountCondition::drawSettings()
     ImGui::PopItemWidth();
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- MoraleCondition -------------
@@ -1151,7 +1213,7 @@ bool MoraleCondition::check() const
     if (!worldContext) return false;
     return compare(int(worldContext->morale) - 100, comp, morale);
 }
-void MoraleCondition::drawSettings()
+bool MoraleCondition::drawSettings()
 {
     ImGui::PushID(drawId());
 
@@ -1164,6 +1226,8 @@ void MoraleCondition::drawSettings()
     ImGui::PopItemWidth();
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- FalseCondition -------------
@@ -1171,13 +1235,13 @@ bool FalseCondition::check() const
 {
     return false;
 }
-void FalseCondition::drawSettings()
+bool FalseCondition::drawSettings()
 {
     ImGui::PushID(drawId());
-
     ImGui::Text("False");
-
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- TrueCondition -------------
@@ -1185,13 +1249,13 @@ bool TrueCondition::check() const
 {
     return true;
 }
-void TrueCondition::drawSettings()
+bool TrueCondition::drawSettings()
 {
     ImGui::PushID(drawId());
-
     ImGui::Text("True");
-
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- OnceCondition -------------
@@ -1223,15 +1287,19 @@ bool OnceCondition::check() const
     triggeredLastInInstanceId = currentInstanceId;
     return true;
 }
-void OnceCondition::drawSettings()
+bool OnceCondition::drawSettings()
 {
+    bool keyChanged = false;
+
     ImGui::PushID(drawId());
     ImGui::Text("ONCE (");
     ImGui::SameLine();
-    if (cond) {
-        cond->drawSettings();
+    if (cond) 
+    {
+        keyChanged |= cond->drawSettings();
     }
-    else {
+    else 
+    {
         cond = drawConditionSelector(100.f);
     }
     ImGui::SameLine();
@@ -1239,6 +1307,12 @@ void OnceCondition::drawSettings()
     ImGui::SameLine();
     ImGui::ShowHelp("Is true exactly once the first time the condition is met");
     ImGui::PopID();
+
+    return keyChanged;
+}
+std::vector<Hotkey> OnceCondition::disabledKeys() const
+{
+    return cond ? cond->disabledKeys() : std::vector<Hotkey>{};
 }
 
 /// ------------- UntilCondition -------------
@@ -1276,13 +1350,15 @@ bool UntilCondition::check() const
 
     return currentState;
 }
-void UntilCondition::drawSettings()
+bool UntilCondition::drawSettings()
 {
+    bool keyChanged = false;
+
     ImGui::PushID(drawId());
     ImGui::Text("UNTIL (");
     ImGui::SameLine();
     if (cond) {
-        cond->drawSettings();
+        keyChanged |= cond->drawSettings();
     }
     else {
         cond = drawConditionSelector(100.f);
@@ -1292,6 +1368,12 @@ void UntilCondition::drawSettings()
     ImGui::SameLine();
     ImGui::ShowHelp("Is true until the condition is met the first time in each instance. False after that.");
     ImGui::PopID();
+
+    return keyChanged;
+}
+std::vector<Hotkey> UntilCondition::disabledKeys() const
+{
+    return cond ? cond->disabledKeys() : std::vector<Hotkey>{};
 }
 
 /// ------------- AfterCondition -------------
@@ -1328,13 +1410,15 @@ bool AfterCondition::check() const
 
     return currentState;
 }
-void AfterCondition::drawSettings()
+bool AfterCondition::drawSettings()
 {
+    bool keyChanged = false;
+
     ImGui::PushID(drawId());
     ImGui::Text("AFTER (");
     ImGui::SameLine();
     if (cond) {
-        cond->drawSettings();
+        keyChanged |= cond->drawSettings();
     }
     else {
         cond = drawConditionSelector(100.f);
@@ -1344,6 +1428,12 @@ void AfterCondition::drawSettings()
     ImGui::SameLine();
     ImGui::ShowHelp("Is false until the condition is met the first time in each instance. True after that.");
     ImGui::PopID();
+
+    return keyChanged;
+}
+std::vector<Hotkey> AfterCondition::disabledKeys() const
+{
+    return cond ? cond->disabledKeys() : std::vector<Hotkey>{};
 }
 
 /// ------------- ToggleCondition -------------
@@ -1414,8 +1504,9 @@ bool ToggleCondition::check() const
 
     return currentState;
 }
-void ToggleCondition::drawSettings()
+bool ToggleCondition::drawSettings()
 {
+    bool keyChanged = false;
     const auto drawToggle = [&](auto& cond, const auto text, const auto id)
     {
         ImGui::PushID(id);
@@ -1430,7 +1521,7 @@ void ToggleCondition::drawSettings()
         {
             if (ImGui::Button("X")) deleteCondition = true;
             ImGui::SameLine();
-            cond->drawSettings();
+            keyChanged |= cond->drawSettings();
         }
         else
             cond = drawConditionSelector(100.f);
@@ -1453,6 +1544,27 @@ void ToggleCondition::drawSettings()
     ImGui::Unindent(84.f);
 
     ImGui::PopID();
+
+    return keyChanged;
+}
+std::vector<Hotkey> ToggleCondition::disabledKeys() const
+{
+    std::vector<Hotkey> result;
+    if (toggleOnCond) 
+    {
+        for (const auto& disabled : toggleOnCond->disabledKeys()) 
+        {
+            result.push_back(disabled);
+        }
+    }
+    if (toggleOffCond) 
+    {
+        for (const auto& disabled : toggleOffCond->disabledKeys()) 
+        {
+            result.push_back(disabled);
+        }
+    }
+    return result;
 }
 
 /// ------------- ThrottleCondition -------------
@@ -1476,7 +1588,7 @@ bool ThrottleCondition::check() const
     lastTimeReturnedTrue = now;
     return true;
 }
-void ThrottleCondition::drawSettings()
+bool ThrottleCondition::drawSettings()
 {
     ImGui::PushID(drawId());
 
@@ -1487,6 +1599,8 @@ void ThrottleCondition::drawSettings()
     ImGui::PopItemWidth();
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- PlayerHasCharacteristicsCondition -------------
@@ -1515,7 +1629,7 @@ bool PlayerHasCharacteristicsCondition::check() const
     if (!player) return false;
     return characteristic && characteristic->check(*player);
 }
-void PlayerHasCharacteristicsCondition::drawSettings()
+bool PlayerHasCharacteristicsCondition::drawSettings()
 {
     ImGui::PushID(drawId());
 
@@ -1525,6 +1639,8 @@ void PlayerHasCharacteristicsCondition::drawSettings()
         characteristic->drawSettings();
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- TargetHasCharacteristicsCondition -------------
@@ -1555,7 +1671,7 @@ bool TargetHasCharacteristicsCondition::check() const
     if (!target) return false;
     return characteristic && characteristic->check(*target);
 }
-void TargetHasCharacteristicsCondition::drawSettings()
+bool TargetHasCharacteristicsCondition::drawSettings()
 {
     ImGui::PushID(drawId());
 
@@ -1565,6 +1681,8 @@ void TargetHasCharacteristicsCondition::drawSettings()
         characteristic->drawSettings();
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- AgentWithCharacteristicsCountCondition -------------
@@ -1628,7 +1746,7 @@ bool AgentWithCharacteristicsCountCondition::check() const
 
     return compare(actualCount, comp, count);
 }
-void AgentWithCharacteristicsCountCondition::drawSettings()
+bool AgentWithCharacteristicsCountCondition::drawSettings()
 {
     ImGui::PushID(drawId());
 
@@ -1666,6 +1784,8 @@ void AgentWithCharacteristicsCountCondition::drawSettings()
     if (ImGui::Button("+")) characteristics.push_back(nullptr);
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- ScriptVariableValueCondition -------------
@@ -1688,7 +1808,7 @@ bool ScriptVariableValueCondition::check() const
 
     return compare(state->value, comp, value);
 }
-void ScriptVariableValueCondition::drawSettings()
+bool ScriptVariableValueCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     
@@ -1706,6 +1826,8 @@ void ScriptVariableValueCondition::drawSettings()
     ImGui::PopItemWidth();
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- ScriptVariableIsSetCondition -------------
@@ -1726,7 +1848,7 @@ bool ScriptVariableIsSetCondition::check() const
     const auto actual = ScriptVariableManager::getInstance().get(name).has_value();
     return actual == (comp == IsIsNot::Is);
 }
-void ScriptVariableIsSetCondition::drawSettings()
+bool ScriptVariableIsSetCondition::drawSettings()
 {
     ImGui::PushID(drawId());
 
@@ -1742,6 +1864,8 @@ void ScriptVariableIsSetCondition::drawSettings()
     ImGui::Text("set");
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- DoorStatusCondition -------------
@@ -1759,7 +1883,7 @@ bool DoorStatusCondition::check() const
 {
     return InstanceInfo::getInstance().getDoorStatus(id) == status;
 }
-void DoorStatusCondition::drawSettings()
+bool DoorStatusCondition::drawSettings()
 {
     ImGui::PushID(drawId());
 
@@ -1772,6 +1896,8 @@ void DoorStatusCondition::drawSettings()
     drawEnumButton(DoorStatus::Open, DoorStatus::Closed, status, 1, 70.f);
 
     ImGui::PopID();
+
+    return false;
 }
 
 /// ------------- PlayerHasEnergyRegenCondition -------------
@@ -1793,7 +1919,7 @@ bool PlayerHasEnergyRegenCondition::check() const
     const auto pips = (int)std::round(3.f / 0.99f * player->energy_regen * player->max_energy);
     return compare(pips, comp, regeneration);
 }
-void PlayerHasEnergyRegenCondition::drawSettings()
+bool PlayerHasEnergyRegenCondition::drawSettings()
 {
     ImGui::PushID(drawId());
 
@@ -1806,4 +1932,6 @@ void PlayerHasEnergyRegenCondition::drawSettings()
     ImGui::PopItemWidth();
 
     ImGui::PopID();
+
+    return false;
 }
