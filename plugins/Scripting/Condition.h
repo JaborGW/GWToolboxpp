@@ -10,7 +10,7 @@ enum class ConditionType : int {
     Or,
     And,
     IsInMap,
-    QuestHasState,
+    Deprecated_QuestObjectiveHasState,
     PartyPlayerCount,
     PartyMemberStatus,
     HasPartyWindowAllyOfName,
@@ -44,6 +44,8 @@ enum class ConditionType : int {
     ScriptVariableIsSet,
     DoorStatus,
     PlayerHasEnergyRegen,
+    QuestHasState,
+    ObjectiveHasState,
 
     Count
 };

@@ -49,6 +49,7 @@ std::string_view toString(DoaZone);
 std::string_view toString(MovementDirection);
 std::string_view toString(IdRestriction);
 std::string_view toString(SkillType);
+std::string_view toString(ObjectiveType);
 
 bool checkWeaponType(WeaponType, uint16_t);
 // @returns true if the hotkey was edited
@@ -125,3 +126,4 @@ bool compare(const T& a, IsIsNot comp, const T& b)
 }
 
 std::string WStringToString(const std::wstring_view str);
+std::wstring StringToWString(const std::string_view str);

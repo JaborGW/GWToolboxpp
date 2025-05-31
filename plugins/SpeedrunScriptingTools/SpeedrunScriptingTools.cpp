@@ -3,6 +3,7 @@
 #include <ConditionIO.h>
 #include <ActionIO.h>
 #include <InstanceInfo.h>
+#include <QuestInfo.h>
 #include <Keys.h>
 #include <enumUtils.h>
 #include <SerializationIncrement.h>
@@ -1232,6 +1233,7 @@ void SpeedrunScriptingTools::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HM
     });
 
     InstanceInfo::getInstance().initialize();
+    QuestInfo::getInstance().initialize();
     srand((unsigned int)time(NULL));
 }
 
@@ -1259,6 +1261,7 @@ bool SpeedrunScriptingTools::triggerScripts(Trigger triggerType, std::function<b
 void SpeedrunScriptingTools::SignalTerminate()
 {
     InstanceInfo::getInstance().terminate();
+    QuestInfo::getInstance().terminate();
 
     GW::StoC::RemovePostCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::MessageCore>(&CoreMessage_Entry);

@@ -2,6 +2,7 @@
 
 #include <ConditionIO.h>
 #include <InstanceInfo.h>
+#include <QuestInfo.h>
 #include <enumUtils.h>
 
 #include <BackupManager.h>
@@ -890,6 +891,7 @@ void GWSplits::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODULE toolbox_
     });
 
     InstanceInfo::getInstance().initialize();
+    QuestInfo::getInstance().initialize();
     srand((unsigned int)time(NULL));
 }
 
@@ -900,4 +902,7 @@ void GWSplits::SignalTerminate()
     GW::StoC::RemovePostCallback<GW::Packet::StoC::DungeonReward>(&DungeonReward_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::DoACompleteZone>(&DoACompleteZone_Entry);
     ToolboxUIPlugin::SignalTerminate();
+
+    InstanceInfo::getInstance().terminate();
+    QuestInfo::getInstance().terminate();
 }

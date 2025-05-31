@@ -43,6 +43,16 @@ std::string WStringToString(const std::wstring_view str)
     WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), str_to.data(), size_needed, NULL, NULL);
     return str_to;
 }
+std::wstring StringToWString(const std::string_view str)
+{
+    if (str.empty()) {
+        return L"";
+    }
+    const auto size_needed = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str.data(), static_cast<int>(str.size()), nullptr, 0);
+    std::wstring wstrTo(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), wstrTo.data(), size_needed);
+    return wstrTo;
+}
 
 std::string_view toString(Class c)
 {
@@ -147,8 +157,8 @@ std::string_view toString(QuestStatus status)
     switch (status) {
         case QuestStatus::NotStarted:
             return "Not started";
-        case QuestStatus::Started:
-            return "Started";
+        case QuestStatus::Running:
+            return "Running";
         case QuestStatus::Completed:
             return "Completed";
         case QuestStatus::Failed:
@@ -435,6 +445,17 @@ std::string_view toString(IdRestriction restriction)
             return "Any ID";
         case IdRestriction::SpecificId:
             return "Specific ID";
+    }
+    return "";
+}
+
+std::string_view toString(ObjectiveType restriction)
+{
+    switch (restriction) {
+        case ObjectiveType::Mission:
+            return "Current Mission";
+        case ObjectiveType::Quest:
+            return "Quest";
     }
     return "";
 }

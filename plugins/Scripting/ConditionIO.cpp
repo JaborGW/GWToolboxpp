@@ -9,7 +9,7 @@ namespace
 {
 ConditionPtr makeCondition(ConditionType type)
 {
-    static_assert((int)ConditionType::Count == 54);
+    static_assert((int)ConditionType::Count == 56);
     switch (type) {
         case ConditionType::Not:
             return std::make_shared<NegatedCondition>();
@@ -19,6 +19,10 @@ ConditionPtr makeCondition(ConditionType type)
             return std::make_shared<ConjunctionCondition>();
         case ConditionType::IsInMap:
             return std::make_shared<IsInMapCondition>();
+        case ConditionType::ObjectiveHasState:
+            return std::make_shared<ObjectiveHasStateCondition>();
+        case ConditionType::Deprecated_QuestObjectiveHasState:
+            return std::make_shared<Deprecated_ObjectiveHasStateCondition>();
         case ConditionType::QuestHasState:
             return std::make_shared<QuestHasStateCondition>();
         case ConditionType::PartyPlayerCount:
@@ -101,7 +105,7 @@ ConditionPtr makeCondition(ConditionType type)
 
 std::string_view toString(ConditionType type)
 {
-    static_assert((int)ConditionType::Count == 54);
+    static_assert((int)ConditionType::Count == 56);
     switch (type) {
         case ConditionType::Not:
             return "Not";
@@ -111,6 +115,8 @@ std::string_view toString(ConditionType type)
             return "And";
         case ConditionType::IsInMap:
             return "Map ID";
+        case ConditionType::ObjectiveHasState:
+            return "Objective state";
         case ConditionType::QuestHasState:
             return "Quest state";
         case ConditionType::PartyPlayerCount:
@@ -193,7 +199,7 @@ std::string_view toString(ConditionType type)
 
 ConditionPtr readCondition(InputStream& stream)
 {
-static_assert((int)ConditionType::Count == 54);
+static_assert((int)ConditionType::Count == 56);
 int type;
 stream >> type;
 switch (static_cast<ConditionType>(type))
@@ -206,6 +212,10 @@ switch (static_cast<ConditionType>(type))
         return std::make_shared<ConjunctionCondition>(stream);
     case ConditionType::IsInMap:
         return std::make_shared<IsInMapCondition>(stream);
+    case ConditionType::Deprecated_QuestObjectiveHasState:
+        return std::make_shared<Deprecated_ObjectiveHasStateCondition>(stream);
+    case ConditionType::ObjectiveHasState:
+        return std::make_shared<ObjectiveHasStateCondition>(stream);
     case ConditionType::QuestHasState:
         return std::make_shared<QuestHasStateCondition>(stream);
     case ConditionType::PartyPlayerCount:
@@ -316,7 +326,7 @@ ConditionPtr drawConditionSelector(float width)
     constexpr auto skillConditions = std::array{ConditionType::PlayerHasBuff, ConditionType::PlayerHasSkill, ConditionType::PlayerHasSkillBySlot, ConditionType::RemainingCooldown, ConditionType::PlayerHasEnergy, ConditionType::PlayerHasEnergyRegen, ConditionType::PlayerMorale};
     constexpr auto itemConditions = std::array{ConditionType::PlayerHasItemEquipped, ConditionType::ItemInInventory, ConditionType::CanPopAgent};
     constexpr auto partyConditions = std::array{ConditionType::PartyPlayerCount, ConditionType::PartyHasLoadedIn, ConditionType::PartyMemberStatus, ConditionType::HasPartyWindowAllyOfName};
-    constexpr auto instanceConditions = std::array{ConditionType::IsInMap, ConditionType::InstanceType, ConditionType::DoorStatus, ConditionType::QuestHasState, ConditionType::InstanceProgress, ConditionType::InstanceTime, ConditionType::FoeCount};
+    constexpr auto instanceConditions = std::array{ConditionType::IsInMap, ConditionType::InstanceType, ConditionType::DoorStatus, ConditionType::ObjectiveHasState, ConditionType::QuestHasState, ConditionType::InstanceProgress, ConditionType::InstanceTime, ConditionType::FoeCount};
     constexpr auto logicConditions = std::array{ConditionType::Not, ConditionType::Or, ConditionType::And, ConditionType::True, ConditionType::False};
     constexpr auto variableConditions = std::array{ConditionType::ScriptVariableValue, ConditionType::ScriptVariableIsSet};
     constexpr auto controlFlowCondition = std::array{ConditionType::OnlyTriggerOncePerInstance, ConditionType::Throttle, ConditionType::Once, ConditionType::Until, ConditionType::After, ConditionType::Toggle};

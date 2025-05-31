@@ -969,7 +969,7 @@ ConditionPtr readV10Condition(InputStream& stream)
         case v10::ConditionType::IsInMap:
             return std::make_shared<IsInMapCondition>(stream);
         case v10::ConditionType::QuestHasState:
-            return std::make_shared<QuestHasStateCondition>(stream);
+            return std::make_shared<ObjectiveHasStateCondition>(stream);
         case v10::ConditionType::PartyPlayerCount:
             return std::make_shared<PartyPlayerCountCondition>(stream);
         case v10::ConditionType::PartyHasLoadedIn:

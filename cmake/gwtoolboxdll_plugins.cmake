@@ -52,6 +52,8 @@ target_sources(scripting INTERFACE
     "plugins/Scripting/io.cpp"
     "plugins/Scripting/ModelNames.h"
     "plugins/Scripting/ModelNames.cpp"
+    "plugins/Scripting/QuestInfo.h"
+    "plugins/Scripting/QuestInfo.cpp"
     "plugins/Scripting/ScriptVariables.h"
     "plugins/Scripting/ScriptVariables.cpp"
     "plugins/Scripting/SerializationIncrement.h"

@@ -3,7 +3,6 @@
 #include <GWCA/GameEntities/Party.h>
 #include <GWCA/GameEntities/Player.h>
 #include <GWCA/GameEntities/NPC.h>
-#include <GWCA/GameEntities/Quest.h>
 
 #include <GWCA/Context/WorldContext.h>
 
@@ -13,7 +12,6 @@
 #include <GWCA/Managers/PartyMgr.h>
 #include <GWCA/Managers/UIMgr.h>
 #include <GWCA/Managers/MapMgr.h>
-#include <GWCA/Managers/QuestMgr.h>
 
 #include <GWCA/Packets/StoC.h>
 #include <GWCA/Constants/ItemIDs.h>
@@ -22,12 +20,8 @@
 #include <enumUtils.h>
 
 namespace {
-    GW::HookEntry ObjectiveUpdateName_Entry;
-    GW::HookEntry ObjectiveDone_Entry;
-    GW::HookEntry QuestAdd_Entry;
     GW::HookEntry InstanceLoadFile_Entry;
     GW::HookEntry UseItem_Entry;
-    GW::HookEntry DisplayDialogue_Entry;
     GW::HookEntry FinishSkill_Entry;
     GW::HookEntry ManipulateMapObject_Entry;
     GW::HookEntry DungeonReward_Entry;
@@ -62,53 +56,21 @@ namespace {
 
 void InstanceInfo::initialize()
 {
-    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::ObjectiveUpdateName>(&ObjectiveUpdateName_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::ObjectiveUpdateName* packet) {
-        this->objectiveStatus[packet->objective_id] = QuestStatus::Started;
-    });
-    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::ObjectiveDone>(&ObjectiveDone_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::ObjectiveDone* packet) {
-        this->objectiveStatus[packet->objective_id] = QuestStatus::Completed;
-    });
-
-    const auto updateQuestNames = [this] {
-        const auto questLog = GW::QuestMgr::GetQuestLog();
-        if (!questLog) 
-            return;
-
-        for (const auto& quest : *questLog) 
-        {
-            if (questNames.contains(quest.quest_id)) continue;
-            GW::UI::AsyncDecodeStr(quest.name, &questNames[quest.quest_id]);
-        }
-    };
-    updateQuestNames();
-
-    GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry, [this, updateQuestNames](GW::HookStatus*, const GW::Packet::StoC::InstanceLoadFile*) {
+    GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::InstanceLoadFile*) {
         using namespace std::chrono_literals;
 
-        this->objectiveStatus.clear();
         this->decodedAgentNames.clear();
         this->decodedItemNames.clear();
         this->storedTargets.clear();
         this->doorStatus.clear();
         instanceIsCompleted = false;
-        updateQuestNames();
 
         mpStatus.poppedMinipetId = std::nullopt;
         mpStatus.lastPop = std::chrono::steady_clock::now() - 1h;
 
         ++instanceId;
     });
-    GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::QuestAdd>(&QuestAdd_Entry, [this, updateQuestNames](GW::HookStatus*, const GW::Packet::StoC::QuestAdd*) 
-    {
-        updateQuestNames();
-    });
-    GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::DisplayDialogue>(&DisplayDialogue_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::DisplayDialogue* packet) {
-        if (wmemcmp(packet->message, L"\x8102\x5d41\xa992\xf927\x29f7", 5) == 0) 
-        {
-            // Dhuum quest does not send a `ObjectiveUpdateName` StoC
-            this->objectiveStatus[157] = QuestStatus::Started;
-        }
-    });
+    
     GW::StoC::RegisterPacketCallback(&CountdownStart_Entry, GAME_SMSG_INSTANCE_COUNTDOWN, [this](GW::HookStatus*, GW::Packet::StoC::PacketBase*) {
         this->instanceIsCompleted = true;
     });
@@ -157,20 +119,12 @@ void InstanceInfo::initialize()
 
 void InstanceInfo::terminate() 
 {
-    GW::StoC::RemovePostCallback<GW::Packet::StoC::ObjectiveUpdateName>(&ObjectiveUpdateName_Entry);
-    GW::StoC::RemovePostCallback<GW::Packet::StoC::ObjectiveDone>(&ObjectiveDone_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::InstanceLoadFile>(&InstanceLoadFile_Entry);
-    GW::StoC::RemovePostCallback<GW::Packet::StoC::DisplayDialogue>(&DisplayDialogue_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::DungeonReward>(&DungeonReward_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::ManipulateMapObject>(&ManipulateMapObject_Entry);
-    GW::StoC::RemovePostCallback<GW::Packet::StoC::QuestAdd>(&QuestAdd_Entry);
     RemoveUIMessageCallback(&UseItem_Entry, GW::UI::UIMessage::kSendUseItem);
 }
 
-QuestStatus InstanceInfo::getObjectiveStatus(uint32_t id)
-{
-    return objectiveStatus[id];
-}
 std::string InstanceInfo::getDecodedAgentName(GW::AgentID id)
 {
     auto& wName = decodedAgentNames[id];
@@ -208,11 +162,6 @@ std::string InstanceInfo::getDecodedAgentName(GW::AgentID id)
         GW::UI::AsyncDecodeStr(encodedName, &wName);
     }
     return WStringToString(wName);
-}
-std::string InstanceInfo::getDecodedQuestName(GW::Constants::QuestID id) const
-{
-    if (!questNames.contains(id)) return "";
-    return WStringToString(questNames.at(id));
 }
 std::string InstanceInfo::getDecodedItemName(uint32_t item_id)
 {

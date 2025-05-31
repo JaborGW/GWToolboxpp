@@ -14,7 +14,7 @@ enum class AgentType { Any, Self, PartyMember, Friendly, Hostile };
 enum class Sorting { AgentId, ClosestToPlayer, FurthestFromPlayer, ClosestToTarget, FurthestFromTarget, LowestHp, HighestHp, ModelID };
 enum class AnyNoYes { Any, No, Yes };
 enum class Channel { All, Guild, Team, Trade, Alliance, Whisper, Emote, Log };
-enum class QuestStatus { NotStarted, Started, Completed, Failed };
+enum class QuestStatus { NotStarted, Running, Completed, Failed };
 enum class GoToTargetFinishCondition { None, StoppedMovingNextToTarget, DialogOpen };
 enum class HasSkillRequirement {OnBar, OffCooldown, ReadyToUse};
 enum class PlayerConnectednessRequirement {All, Individual};
@@ -33,6 +33,7 @@ enum class DoaZone: uint32_t { Foundry = 0x273F, Veil, Gloom, City };
 enum class MovementDirection : uint32_t { Forwards, Left, Right, Backwards };
 enum class IdRestriction{ Any, SpecificId };
 enum class SkillType { Any, Spell, Signet, Well, Skill, Ward, Glyph, Attack, Preparation, Trap, Ritual, WeaponSpell, Chant, Hex, Enchantment };
+enum class ObjectiveType { Quest, Mission };
 
 enum class ActionBehaviourFlag : uint32_t 
 {

@@ -3,12 +3,10 @@
 #include <Enums.h>
 
 #include <commonIncludes.h>
-#include <GWCA/Constants/Constants.h>
 #include <GWCA/GameEntities/Agent.h>
 
 #include <chrono>
 #include <unordered_map>
-#include <unordered_set>
 
 // Contains information about the current instance which either has to be kept between function calls or is expensive to compute
 class InstanceInfo {
@@ -22,11 +20,9 @@ public:
         static InstanceInfo info;
         return info;
     }
-    QuestStatus getObjectiveStatus(uint32_t);
     std::string getDecodedAgentName(GW::AgentID);
-    std::string getDecodedQuestName(GW::Constants::QuestID) const;
     std::string getDecodedItemName(uint32_t);
-
+    
     bool canPopAgent() const;
     bool hasMinipetPopped() const;
     int getInstanceId() const { return instanceId; }
@@ -42,12 +38,12 @@ public:
     InstanceInfo(InstanceInfo&&) = delete;
 
 private:
+
     InstanceInfo() = default;
-    std::unordered_map<uint32_t, QuestStatus> objectiveStatus;
     std::unordered_map<GW::AgentID, std::wstring> decodedAgentNames;
     std::unordered_map<uint32_t, std::wstring> decodedItemNames;
     std::unordered_map<int, GW::AgentID> storedTargets;
-    std::unordered_map<GW::Constants::QuestID, std::wstring> questNames;
+    
     std::unordered_map<DoorID, DoorStatus> doorStatus;
     int instanceId = 0;
     bool instanceIsCompleted = false;

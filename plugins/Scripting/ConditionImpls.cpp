@@ -3,6 +3,7 @@
 #include <ConditionIO.h>
 #include <enumUtils.h>
 #include <InstanceInfo.h>
+#include <QuestInfo.h>
 #include <CharacteristicIO.h>
 #include <ScriptVariables.h>
 
@@ -13,6 +14,7 @@
 #include <GWCA/GameEntities/Player.h>
 #include <GWCA/GameEntities/Skill.h>
 #include <GWCA/GameEntities/Attribute.h>
+#include <GWCA/GameEntities/Quest.h>
 
 #include <GWCA/Context/GameContext.h>
 #include <GWCA/Context/CharContext.h>
@@ -27,6 +29,7 @@
 #include <GWCA/Managers/PartyMgr.h>
 #include <GWCA/Managers/ItemMgr.h>
 #include <GWCA/Managers/ChatMgr.h>
+#include <GWCA/Managers/QuestMgr.h>
 
 #include <Keys.h>
 #include "ImGuiCppWrapper.h"
@@ -876,23 +879,22 @@ bool PartyMemberStatusCondition::drawSettings()
     return false;
 }
 
-/// ------------- QuestHasStateCondition -------------
-
-QuestHasStateCondition::QuestHasStateCondition(InputStream& stream)
+/// ------------- Deprecated_ObjectiveHasStateCondition -------------
+Deprecated_ObjectiveHasStateCondition::Deprecated_ObjectiveHasStateCondition(InputStream& stream)
 {
     stream >> id >> status;
 }
-void QuestHasStateCondition::serialize(OutputStream& stream) const
+void Deprecated_ObjectiveHasStateCondition::serialize(OutputStream& stream) const
 {
     Condition::serialize(stream);
 
     stream << id << status;
 }
-bool QuestHasStateCondition::check() const
+bool Deprecated_ObjectiveHasStateCondition::check() const
 {
-    return InstanceInfo::getInstance().getObjectiveStatus(id) == status;
+    return QuestInfo::getInstance().getMissionObjectiveStatus(id) == status;
 }
-bool QuestHasStateCondition::drawSettings()
+bool Deprecated_ObjectiveHasStateCondition::drawSettings()
 {
     ImGui::PushID(drawId());
     ImGui::Text("If the quest objective has status");
@@ -1931,6 +1933,148 @@ bool PlayerHasEnergyRegenCondition::drawSettings()
     ImGui::InputInt("", &regeneration, 0);
     ImGui::PopItemWidth();
 
+    ImGui::PopID();
+
+    return false;
+}
+
+/// ------------- QuestHasStateCondition -------------
+QuestHasStateCondition::QuestHasStateCondition(InputStream& stream)
+{
+    name = readStringWithSpaces(stream);
+    stream >> status;
+}
+void QuestHasStateCondition::serialize(OutputStream& stream) const
+{
+    Condition::serialize(stream);
+
+    writeStringWithSpaces(stream, name);
+    stream << status;
+}
+bool QuestHasStateCondition::check() const
+{
+    const auto quest = QuestInfo::getInstance().getQuest(name);
+
+    switch (status) 
+    {
+        case QuestStatus::NotStarted:
+            return !quest.has_value();
+        case QuestStatus::Running:
+            return quest && !GW::QuestMgr::GetQuest(quest->id)->IsCompleted();
+        case QuestStatus::Completed:
+            return quest && GW::QuestMgr::GetQuest(quest->id)->IsCompleted();
+        case QuestStatus::Failed:
+            return false;
+    }
+    return false;
+}
+bool QuestHasStateCondition::drawSettings()
+{
+    ImGui::PushID(drawId());
+    ImGui::Text("If the quest");
+    ImGui::PushItemWidth(120.f);
+    ImGui::SameLine();
+    ImGui::InputText("", &name);
+    ImGui::SameLine();
+    ImGui::Text("has state");
+    ImGui::SameLine();
+    drawEnumButton(QuestStatus::NotStarted, QuestStatus::Completed, status);
+    ImGui::PopItemWidth();
+    ImGui::PopID();
+
+    return false;
+}
+
+/// ------------- ObjectiveHasStateCondition -------------
+ObjectiveHasStateCondition::ObjectiveHasStateCondition(InputStream& stream)
+{
+    questName = readStringWithSpaces(stream);
+    objectiveName = readStringWithSpaces(stream);
+    stream >> status >> objectiveType;
+}
+void ObjectiveHasStateCondition::serialize(OutputStream& stream) const
+{
+    Condition::serialize(stream);
+
+    writeStringWithSpaces(stream, questName);
+    writeStringWithSpaces(stream, objectiveName);
+    stream << status << objectiveType;
+}
+bool ObjectiveHasStateCondition::check() const
+{
+    const auto& questInfo = QuestInfo::getInstance();
+    if (objectiveType == ObjectiveType::Quest) 
+    {
+        const auto quest = questInfo.getQuest(questName);
+        if (!quest) 
+        {
+            return status == QuestStatus::NotStarted;
+        }
+
+        const auto& objectives = questInfo.listObjectives(quest->id);
+        const auto objective = std::ranges::find_if(objectives, [&](const QuestInfo::Objective& o){ return o.name.contains(objectiveName); });
+
+        switch (status) 
+        {
+            case QuestStatus::NotStarted:
+                return objective == objectives.end();
+            case QuestStatus::Running:
+                return objective != objectives.end() && !objective->isCompleted;
+            case QuestStatus::Completed:
+                return objective != objectives.end() && objective->isCompleted;
+            default:
+                return false;
+        }
+    }
+    else 
+    {
+        const auto objectives = questInfo.listMissionObjectives();
+        const auto objective = std::ranges::find_if(objectives, [&](const QuestInfo::Objective& o){ return o.name.contains(objectiveName); });
+        switch (status) 
+        {
+            case QuestStatus::NotStarted:
+                return objective == objectives.end();
+            case QuestStatus::Running:
+                return objective != objectives.end() && !objective->isCompleted;
+            case QuestStatus::Completed:
+                return objective != objectives.end() && objective->isCompleted;
+            default:
+                return false;
+        }
+    }
+    return false;
+}
+bool ObjectiveHasStateCondition::drawSettings()
+{
+    ImGui::PushID(drawId());
+    ImGui::PushItemWidth(250.f);
+
+    ImGui::Text("If the");
+    ImGui::SameLine();
+    drawEnumButton(ObjectiveType::Quest, ObjectiveType::Mission, objectiveType, 0, 120.f);
+    if (objectiveType == ObjectiveType::Quest) 
+    {
+        ImGui::SameLine();
+        ImGui::PushID(1);
+        ImGui::InputText("", &questName);
+        ImGui::PopID();
+    }
+    else 
+    {
+        questName.clear();
+    }
+    ImGui::SameLine();
+    ImGui::Text("has objective");
+    ImGui::SameLine();
+    ImGui::PushID(2);
+    ImGui::InputText("", &objectiveName);
+    ImGui::PopID();
+    ImGui::SameLine();
+    ImGui::Text("with status");
+    ImGui::SameLine();
+    drawEnumButton(QuestStatus::NotStarted, QuestStatus::Completed, status, 3);
+
+    ImGui::PopItemWidth();
     ImGui::PopID();
 
     return false;

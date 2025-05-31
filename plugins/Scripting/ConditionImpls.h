@@ -68,11 +68,11 @@ private:
     GW::Constants::MapID id = GW::Constants::MapID::The_Underworld;
 };
 
-class QuestHasStateCondition : public Condition {
+class Deprecated_ObjectiveHasStateCondition : public Condition {
 public:
-    QuestHasStateCondition() = default;
-    QuestHasStateCondition(InputStream&);
-    ConditionType type() const final { return ConditionType::QuestHasState; }
+    Deprecated_ObjectiveHasStateCondition() = default;
+    Deprecated_ObjectiveHasStateCondition(InputStream&);
+    ConditionType type() const final { return ConditionType::Deprecated_QuestObjectiveHasState; }
     bool check() const final;
     bool drawSettings() final;
     void serialize(OutputStream&) const final;
@@ -540,4 +540,34 @@ public:
 private:
     int regeneration = 4;
     ComparisonOperator comp = ComparisonOperator::Equals;
+};
+
+class QuestHasStateCondition : public Condition {
+public:
+    QuestHasStateCondition() = default;
+    QuestHasStateCondition(InputStream&);
+    ConditionType type() const final { return ConditionType::QuestHasState; }
+    bool check() const final;
+    bool drawSettings() final;
+    void serialize(OutputStream&) const final;
+
+private:
+    std::string name = "";
+    QuestStatus status = QuestStatus::NotStarted;
+};
+
+class ObjectiveHasStateCondition : public Condition {
+public:
+    ObjectiveHasStateCondition() = default;
+    ObjectiveHasStateCondition(InputStream&);
+    ConditionType type() const final { return ConditionType::ObjectiveHasState; }
+    bool check() const final;
+    bool drawSettings() final;
+    void serialize(OutputStream&) const final;
+
+private:
+    std::string questName = "";
+    std::string objectiveName = "";
+    QuestStatus status = QuestStatus::NotStarted;
+    ObjectiveType objectiveType = ObjectiveType::Mission;
 };

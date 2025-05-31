@@ -4,6 +4,7 @@
 #include <CharacteristicIO.h>
 #include <ActionIO.h>
 #include <InstanceInfo.h>
+#include <QuestInfo.h>
 #include <ScriptVariables.h>
 #include <enumUtils.h>
 
@@ -2104,15 +2105,10 @@ void AbandonQuestAction::initialAction()
 
     const auto questLog = GW::QuestMgr::GetQuestLog();
     if (!questLog || name.empty()) return;
-    const auto& instanceInfo = InstanceInfo::getInstance();
 
-    for (auto& quest : *questLog) 
+    if (const auto quest = QuestInfo::getInstance().getQuest(name))
     {
-        const auto questName = instanceInfo.getDecodedQuestName(quest.quest_id);
-        if (questName == name) 
-        {
-            GW::QuestMgr::AbandonQuest(&quest);
-        }
+        GW::QuestMgr::AbandonQuest(GW::QuestMgr::GetQuest(quest->id));
     }
 }
 
