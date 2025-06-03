@@ -741,16 +741,23 @@ void GWSplits::DrawSettings()
 
     if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading) return;
 
-    ImGui::Checkbox("Lock Position", &lock_move);
-    ImGui::SameLine();
+    ImVec2 pos(0, 0);
+    if (const auto window = ImGui::FindWindowByName(Name())) {
+        pos = window->Pos;
+    }
+
+    if (ImGui::DragFloat2("Position", reinterpret_cast<float*>(&pos), 1.0f, 0.0f, 0.0f, "%.0f")) {
+        ImGui::SetWindowPos(Name(), pos);
+    }
     ImGui::Checkbox("Lock Size", &lock_size);
+
     ImGui::SameLine();
     ImGui::PushItemWidth(150.f);
     ImGui::Combo("Text size", &fontSizeIndex, fontSizeNames, 4);
     ImGui::PopItemWidth();
 
     ImGui::Text("Show: ");
-    ImGui::SameLine();
+    ImGui::Indent();
     ImGui::Checkbox("Run timer", &showRunTime);
     ImGui::SameLine();
     ImGui::Checkbox("Segment timer", &showSegmentTime);
@@ -760,6 +767,7 @@ void GWSplits::DrawSettings()
     ImGui::Checkbox("Sum of best", &showSumOfBest);
     ImGui::SameLine();
     ImGui::Checkbox("Last segment", &showLastSegment);
+    ImGui::Unindent();
 
     drawRuns();
     if (ImGui::Button("Add Run", ImVec2(ImGui::GetContentRegionAvail().x / 2, 0)))
