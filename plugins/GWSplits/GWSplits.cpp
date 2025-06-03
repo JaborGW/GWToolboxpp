@@ -29,6 +29,8 @@ DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 }
 
 namespace {
+    GW::HookEntry InstanceLoadStart_Entry;
+    GW::HookEntry InstanceTimer_Entry;
     GW::HookEntry InstanceLoadInfo_Entry;
     GW::HookEntry DisplayDialogue_Entry;
     GW::HookEntry DungeonReward_Entry;
@@ -41,6 +43,16 @@ namespace {
 
         gwsplits->handleTrigger(Trigger::DisplayDialog, [&](const Split& s){ return !s.triggerData.message.empty() && WStringToString(decoded).contains(s.triggerData.message); });
     }
+    
+    bool isValid(const std::chrono::steady_clock::time_point& time)
+    {
+        return time.time_since_epoch().count();
+    }
+
+    std::chrono::steady_clock::time_point now()
+    {
+        return std::chrono::steady_clock::now();
+    }
 
     constexpr int earlyResultTimeMs = 10'000;
     constexpr long currentVersion = 11;
@@ -48,11 +60,18 @@ namespace {
     constexpr auto gold = ImVec4{0.95686f, 0.7882f, 0.f, 1.f};
     constexpr auto white = ImVec4{1.f, 1.f, 1.f, 1.f};
     const wchar_t* settingsFolder = nullptr; // Folder loaded from. Used for PB saving button
-    int getRunTime() 
+
+    std::chrono::steady_clock::time_point instanceStart;
+
+    std::chrono::steady_clock::time_point getInstanceStart()
     {
-        if (GW::Map::GetInstanceType() != GW::Constants::InstanceType::Explorable) return 0;
-        return (int)GW::Map::GetInstanceTime();
+        if (!isValid(instanceStart)) {
+            instanceStart = now() - std::chrono::milliseconds(GW::Map::GetInstanceTime());
+        }
+
+        return instanceStart;
     }
+
     bool checkConditions(const std::vector<ConditionPtr>& conditions, bool allowEmpty)
     {
         return (allowEmpty || !conditions.empty()) && std::ranges::all_of(conditions, [&](const auto& cond) { return cond->check(); });
@@ -356,6 +375,13 @@ namespace {
             stream << serialize(split);
             stream.writeSeparator();
         }
+
+        stream << 'T';
+        for (const auto& condition : run.trackConditions) {
+            condition->serialize(stream);
+            stream.writeSeparator();
+        }
+
         return stream.str();
     }
     std::optional<Run> deserializeRun(InputStream& stream)
@@ -374,6 +400,20 @@ namespace {
                 result.splits.push_back(*split);
             stream.proceedPastSeparator();
         }
+
+        if (stream.peek() == 'T')
+        {
+            stream.get();
+            while (stream.peek() == 'C') {
+                stream.get();
+
+                if (auto cond = readCondition(stream)) {
+                    result.trackConditions.push_back(cond);
+                }
+                stream.proceedPastSeparator();
+            }
+        }
+
         return result;
     }
     void removePBs(Run& run) 
@@ -398,17 +438,8 @@ void GWSplits::drawRuns()
 
         const auto header = (*runIt)->name + "###0";
         const auto treeOpen = ImGui::TreeNodeEx(header.c_str(), ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth);
+
         ImGui::SameLine(ImGui::GetContentRegionAvail().x - (treeOpen ? 127.f : 148.f));
-        if (currentRun && currentRun == *runIt) 
-        {
-            if (ImGui::Button("Untrack", ImVec2(60, 0))) { currentRun = nullptr; *GetVisiblePtr() = false; }
-        }
-        else 
-        {
-            if (ImGui::Button("Track", ImVec2(60, 0))) { currentRun = *runIt; *GetVisiblePtr() = true; }
-        }
-        
-        ImGui::SameLine();
         if (ImGui::Button("X", ImVec2(20, 0))) {
             runToDelete = runIt;
         }
@@ -422,16 +453,26 @@ void GWSplits::drawRuns()
         }
 
         if (treeOpen) {
-            drawSplits((*runIt)->splits);
-            if (ImGui::Button("Add split", ImVec2(100, 0))) 
-            {
-                (*runIt)->splits.push_back({});
+            if (ImGui::TreeNodeEx("Track", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                drawConditionSetSelector((*runIt)->trackConditions);
+
+                ImGui::TreePop();
             }
-            ImGui::SameLine();
+
+            if (ImGui::TreeNodeEx("Splits", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                drawSplits((*runIt)->splits);
+                if (ImGui::Button("Add split", ImVec2(100, 0))) 
+                {
+                    (*runIt)->splits.push_back({});
+                }
+
+                ImGui::TreePop();
+            }
+
             if (ImGui::Button("Copy run", ImVec2(100, 0))) 
             {
                 if (const auto encoded = encodeString(std::to_string(currentVersion) + " " + serialize(**runIt))) {
-                    logMessage("Copy run " + (*runIt)->name + " to clipboard");
+                    PluginUtils::logMessage("Copy run " + (*runIt)->name + " to clipboard", Name());
                     ImGui::SetClipboardText(encoded->c_str());
                 }
             }
@@ -457,15 +498,35 @@ void GWSplits::Update(float diff)
 {
     ToolboxUIPlugin::Update(diff);
 
+    if (!isCurrentRunTracked) {
+        for (auto& run : runs) {
+            if (checkConditions(run->trackConditions, false)) {
+                if (currentRun != run) {
+                    run->startTime = getInstanceStart();
+                }
+                currentRun = run;
+                isCurrentRunTracked = true;
+                break;
+            }
+        }
+    }
+
     if (!currentRun || currentRun->splits.empty())
+    {
         return;
+    }
+
     if (sumOfBest == 0) 
     {
         sumOfBest = std::accumulate(currentRun->splits.begin(), currentRun->splits.end(), 0, [](int sum, const Split& s) {
             return sum + s.pbSegmentTime;
         });
     }
-    if (GW::Map::GetInstanceType() != GW::Constants::InstanceType::Explorable) return;
+
+    if (currentRun && !checkConditions(currentRun->trackConditions, false))
+    {
+        return;
+    }
 
     auto& currentSplits = currentRun->splits;
     auto currentSplitIt = std::ranges::find_if(currentSplits, [](const Split& split) { return !split.completed; });
@@ -485,7 +546,7 @@ void GWSplits::Update(float diff)
             bestPossibleTime = std::accumulate(std::next(currentSplitIt), currentSplits.end(), lastSegmentTime + bestCurrentSegmentTime, [](int sum, const Split& s) { return sum + s.pbSegmentTime; });
         }
     }
-    else 
+    else
     {
         runTime = std::prev(currentSplitIt)->currentTime;
         segmentTime = std::prev(currentSplitIt)->currentTime - (currentSplits.size() > 1 ? std::prev(currentSplitIt, 2)->currentTime : 0);
@@ -496,11 +557,40 @@ void GWSplits::Update(float diff)
     completeSplit(currentSplitIt);
 }
 
+void GWSplits::resetRun()
+{
+    currentRun = nullptr;
+    isCurrentRunTracked = false;
+
+    segmentStart = 0;
+    lastSegmentColor = ImGui::ColorConvertFloat4ToU32(white);
+    lastSegmentGain = 0;
+
+    for (auto& run : runs) {
+        run->startTime = {};
+        for (auto& split : run->splits) {
+            split.isPB = false;
+            split.completed = false;
+        }
+    }
+}
+
+int GWSplits::getRunTime()
+{
+    if (!currentRun)
+    {
+        return 0;
+    }
+
+    return (int)std::chrono::duration_cast<std::chrono::milliseconds>(now() - currentRun->startTime).count();
+}
+
 void GWSplits::completeSplit(std::vector<Split>::iterator currentSplitIt)
 {
     currentSplitIt->completed = true;
 
     currentSplitIt->currentTime = getRunTime();
+
     const auto finishedSegmentTime = currentSplitIt->currentTime - segmentStart;
     if (currentSplitIt->pbSegmentTime == 0 || finishedSegmentTime < currentSplitIt->pbSegmentTime) {
         currentSplitIt->isPB = true;
@@ -529,7 +619,7 @@ void GWSplits::Draw(IDirect3DDevice9* pDevice)
     ImGui::SetNextWindowSize(ImVec2(100, 0), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(Name(), GetVisiblePtr(), GetWinFlags())) {
         ImGui::PushFont(FontLoader::GetFont(FontLoader::font_sizes[fontSizeIndex]));
-        if (settingsFolder && GW::Map::GetInstanceType() == GW::Constants::InstanceType::Outpost) 
+        if (settingsFolder && !isCurrentRunTracked)
         {
             if (std::ranges::any_of(currentSplits, &Split::isPB)) {
                 if (ImGui::Button("Save new PBs", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
@@ -576,7 +666,7 @@ void GWSplits::Draw(IDirect3DDevice9* pDevice)
                     ImGui::Text(timeToString(timeDiff, ToStringStyle::SecondsCentiseconds).c_str());
                     ImGui::PopStyleColor();
                 }
-                else if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Explorable && row == (currentSplitIt - currentSplits.begin())) {
+                else if (isCurrentRunTracked && row == (currentSplitIt - currentSplits.begin())) {
                     const auto currentTime = getRunTime();
                     const auto timeDiff = currentTime - split.trackedTime;
                     if (timeDiff > -earlyResultTimeMs) {
@@ -799,23 +889,38 @@ void GWSplits::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODULE toolbox_
     ToolboxUIPlugin::Initialize(ctx, fns, toolbox_dll);
 
     lastSegmentColor = ImGui::ColorConvertFloat4ToU32(white);
-    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::InstanceLoadInfo>(&InstanceLoadInfo_Entry, [this](GW::HookStatus*, GW::Packet::StoC::InstanceLoadInfo* pak) -> void 
-    {
-        if (!pak->is_explorable) return;
-        
-        segmentStart = 0;
-        lastSegmentColor = ImGui::ColorConvertFloat4ToU32(white);
-        lastSegmentGain = 0;
-        
-        for (auto& run : runs) 
-        {
-            for (auto& split : run->splits) 
-            {
-                split.isPB = false;
-                split.completed = false;
-                split.currentTime = 0;
-            }
+
+    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::InstanceLoadStart>(&InstanceLoadStart_Entry, [this](GW::HookStatus*, GW::Packet::StoC::InstanceLoadStart*) -> void {
+        if (!isCurrentRunTracked) {
+            resetRun();
         }
+
+        instanceStart = now();
+        isCurrentRunTracked = false;
+    });
+
+    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::InstanceTimer>(&InstanceLoadStart_Entry, [this](GW::HookStatus*, GW::Packet::StoC::InstanceTimer* packet) -> void {
+        if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Outpost)
+        {
+            // This is meant to correct slowloading but doesn't really work in outposts since the instance is active for as long as someone is in it
+            // skipping time correction for outposts shouldn't be a huge issue since runs don't usually start when entering an outpost
+            return;
+        }
+
+        const auto correctedInstanceStart = now() - std::chrono::milliseconds(packet->instance_time);
+
+        if (currentRun && isCurrentRunTracked && currentRun->startTime == instanceStart) {
+            currentRun->startTime = correctedInstanceStart;
+
+            // TODO correct already completed splits - I'd expect this to be very rare so maybe not bother?
+            // alternatively store completionTime for splits and calculate the rest on the fly
+        }
+        instanceStart = correctedInstanceStart;
+    });
+
+    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::InstanceLoadInfo>(&InstanceLoadInfo_Entry, [this](GW::HookStatus*, GW::Packet::StoC::InstanceLoadInfo*) -> void 
+    {
+        handleTrigger(Trigger::InstanceLoad);
     });
     GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::DisplayDialogue>(&DisplayDialogue_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::DisplayDialogue* packet) {
         GW::UI::AsyncDecodeStr(packet->message, &onDisplayDialogDecoded, this);
@@ -890,6 +995,15 @@ void GWSplits::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODULE toolbox_
         }
     });
 
+    GW::Chat::CreateCommand(L"resetrun", [](GW::HookStatus*, const wchar_t*, const int, const LPWSTR*) {
+        const auto instance = static_cast<GWSplits*>(ToolboxPluginInstance());
+        if (!instance) return;
+
+        // TODO this doesn't reset the current split
+        instance->resetRun();
+        instanceStart = now();
+    });
+
     InstanceInfo::getInstance().initialize();
     QuestInfo::getInstance().initialize();
     srand((unsigned int)time(NULL));
@@ -897,6 +1011,8 @@ void GWSplits::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODULE toolbox_
 
 void GWSplits::SignalTerminate()
 {
+    GW::StoC::RemovePostCallback<GW::Packet::StoC::InstanceLoadInfo>(&InstanceLoadStart_Entry);
+    GW::StoC::RemovePostCallback<GW::Packet::StoC::InstanceLoadInfo>(&InstanceTimer_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::InstanceLoadInfo>(&InstanceLoadInfo_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::DisplayDialogue>(&DisplayDialogue_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::DungeonReward>(&DungeonReward_Entry);
