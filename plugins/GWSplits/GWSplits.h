@@ -5,6 +5,8 @@
 #include <Utils/FontLoader.h>
 #include <Enums.h>
 
+#include <chrono>
+
 struct Split 
 {
     // Runtime Info
@@ -28,6 +30,9 @@ struct Run
     std::string name = "New run";
     std::string topText = "";
     std::vector<Split> splits;
+    std::vector<ConditionPtr> trackConditions;
+
+    std::chrono::steady_clock::time_point startTime;
 };
 
 class GWSplits : public ToolboxUIPlugin {
@@ -56,7 +61,12 @@ public:
 private:
     void completeSplit(std::vector<Split>::iterator);
 
+    void resetRun();
+
+    int getRunTime();
+
     std::shared_ptr<Run> currentRun = nullptr;
+    bool isCurrentRunTracked = false;
     std::vector<std::shared_ptr<Run>> runs;
 
     bool showRunTime = true;
