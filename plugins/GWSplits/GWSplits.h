@@ -69,6 +69,8 @@ private:
     bool isCurrentRunTracked = false;
     std::vector<std::shared_ptr<Run>> runs;
 
+    int totalSplits = 0;
+    int upcomingSplits = 0;
     bool showRunTime = true;
     bool showSegmentTime = true;
     bool showBestPossibleTime = true;

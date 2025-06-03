@@ -530,7 +530,7 @@ void GWSplits::Update(float diff)
 
     auto& currentSplits = currentRun->splits;
     auto currentSplitIt = std::ranges::find_if(currentSplits, [](const Split& split) { return !split.completed; });
-    
+
     if (currentSplitIt != currentSplits.end()) 
     {
         runTime = getRunTime();
@@ -552,7 +552,7 @@ void GWSplits::Update(float diff)
         segmentTime = std::prev(currentSplitIt)->currentTime - (currentSplits.size() > 1 ? std::prev(currentSplitIt, 2)->currentTime : 0);
         bestPossibleTime = runTime;
     }
-
+    
     if (currentSplitIt == currentSplits.end() || !checkConditions(currentSplitIt->conditions, false)) return;
     completeSplit(currentSplitIt);
 }
@@ -627,7 +627,7 @@ void GWSplits::Draw(IDirect3DDevice9* pDevice)
                     SaveSettings(settingsFolder);
                 }
             }
-            if (!currentSplits.empty() && std::ranges::all_of(currentSplits, &Split::completed) && runTime < currentSplits[currentSplits.size() - 1].trackedTime) {
+            if (!currentSplits.empty() && std::ranges::all_of(currentSplits, &Split::completed) && (currentSplits[currentSplits.size() - 1].trackedTime == 0 || runTime < currentSplits[currentSplits.size() - 1].trackedTime)) {
                 if (ImGui::Button("Use as reference & save", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
                     for (auto& split : currentSplits) 
                     {
@@ -650,12 +650,25 @@ void GWSplits::Draw(IDirect3DDevice9* pDevice)
             ImGui::TableSetupColumn("Relative", ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableSetupColumn("Tracked", ImGuiTableColumnFlags_WidthFixed);
 
-            int row = 0;
+            int currentSplitIndex = currentSplitIt - currentSplits.begin();
 
-            for (const auto& split : currentSplits) {
+            auto displaySplits = std::span(currentSplits);
+
+            if (isCurrentRunTracked && totalSplits > 0 && totalSplits < (int) currentSplits.size()) {
+                int total = (int) currentSplits.size();
+
+                int end = std::min(currentSplitIndex + std::max(upcomingSplits, 0), total - 1);
+                int upcomingCount = end - currentSplitIndex;
+                int start = currentSplitIndex - (totalSplits - 1 - upcomingCount);
+
+                displaySplits = displaySplits.subspan(std::max(start, 0), std::min(totalSplits, total));
+            }
+
+            for (const auto& split : displaySplits) {
                 ImGui::TableNextRow();
-                if (row == (currentSplitIt - currentSplits.begin())) 
+                if (&split == &*currentSplitIt) {
                     ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, ImGui::GetColorU32(ImVec4{0.3725f, 0.3961f, 0.7529f, 0.6f}));
+                }
                 ImGui::TableNextColumn();
                 ImGui::Text(split.name.c_str());
                 ImGui::TableNextColumn();
@@ -666,7 +679,7 @@ void GWSplits::Draw(IDirect3DDevice9* pDevice)
                     ImGui::Text(timeToString(timeDiff, ToStringStyle::SecondsCentiseconds).c_str());
                     ImGui::PopStyleColor();
                 }
-                else if (isCurrentRunTracked && row == (currentSplitIt - currentSplits.begin())) {
+                else if (isCurrentRunTracked && &split == &*currentSplitIt) {
                     const auto currentTime = getRunTime();
                     const auto timeDiff = currentTime - split.trackedTime;
                     if (timeDiff > -earlyResultTimeMs) {
@@ -684,8 +697,6 @@ void GWSplits::Draw(IDirect3DDevice9* pDevice)
 
                 ImGui::TableNextColumn();
                 ImGui::Text(timeToString(split.trackedTime).c_str());
-
-                ++row;
             }
             ImGui::EndTable();
         }
@@ -751,10 +762,18 @@ void GWSplits::DrawSettings()
     }
     ImGui::Checkbox("Lock Size", &lock_size);
 
-    ImGui::SameLine();
+    ImGui::Text("Display: ");
+    ImGui::Indent();
     ImGui::PushItemWidth(150.f);
+    ImGui::DragInt("Total splits", &totalSplits, 1, 0, 0);
+    ImGui::SameLine();
+    ImGui::ShowHelp("Set to 0 to show all splits");
+    if (totalSplits > 0) {
+        ImGui::DragInt("Upcoming splits", &upcomingSplits, 1, 0, totalSplits);
+    }
+
     ImGui::Combo("Text size", &fontSizeIndex, fontSizeNames, 4);
-    ImGui::PopItemWidth();
+    ImGui::Unindent();
 
     ImGui::Text("Show: ");
     ImGui::Indent();
@@ -812,6 +831,8 @@ void GWSplits::loadFromIniFile(const wchar_t* filePath)
     ini.LoadFile(filePath);
     runs.clear();
     [[maybe_unused]] const long savedVersion = ini.GetLongValue(Name(), "version", 11);
+    fontSizeIndex = ini.GetLongValue(Name(), "totalSplits", 0);
+    upcomingSplits = ini.GetLongValue(Name(), "upcomingSplits", 0);
     showRunTime = ini.GetBoolValue(Name(), "showRunTime", true);
     showSegmentTime = ini.GetBoolValue(Name(), "showSegmentTime", true);
     showBestPossibleTime = ini.GetBoolValue(Name(), "showBestPossibleTime", true);
@@ -858,6 +879,8 @@ void GWSplits::SaveSettings(const wchar_t* folder)
 {
     ToolboxUIPlugin::SaveSettings(folder);
     ini.SetLongValue(Name(), "version", currentVersion);
+    ini.SetLongValue(Name(), "totalSplits", totalSplits);
+    ini.SetLongValue(Name(), "upcomingSplits", upcomingSplits);
     ini.SetBoolValue(Name(), "showRunTime", showRunTime);
     ini.SetBoolValue(Name(), "showSegmentTime", showSegmentTime);
     ini.SetBoolValue(Name(), "showBestPossibleTime", showBestPossibleTime);
