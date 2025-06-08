@@ -77,6 +77,7 @@ private:
     bool showSumOfBest = true;
     bool showLastSegment = true;
     int fontSizeIndex = 2;
+    std::string splitMessage;
 
     // Store these here to be able to keep the value when traveling to outpost
     int segmentStart = 0;
