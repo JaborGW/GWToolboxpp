@@ -831,7 +831,7 @@ void GWSplits::loadFromIniFile(const wchar_t* filePath)
     ini.LoadFile(filePath);
     runs.clear();
     [[maybe_unused]] const long savedVersion = ini.GetLongValue(Name(), "version", 11);
-    fontSizeIndex = ini.GetLongValue(Name(), "totalSplits", 0);
+    totalSplits = ini.GetLongValue(Name(), "totalSplits", 0);
     upcomingSplits = ini.GetLongValue(Name(), "upcomingSplits", 0);
     showRunTime = ini.GetBoolValue(Name(), "showRunTime", true);
     showSegmentTime = ini.GetBoolValue(Name(), "showSegmentTime", true);
