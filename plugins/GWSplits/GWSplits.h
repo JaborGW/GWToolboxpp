@@ -89,4 +89,5 @@ private:
     ImU32 lastSegmentColor = 0;
 
     void drawRuns();
+    void drawSplits(std::vector<Split>&);
 };

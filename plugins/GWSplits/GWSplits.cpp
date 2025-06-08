@@ -197,62 +197,6 @@ namespace {
             conditions.push_back(std::move(newCondition));
         }
     }
-    void drawSplits(std::vector<Split>& splits)
-    {
-        using SplitIt = decltype(splits.begin());
-        std::optional<SplitIt> splitToDelete = std::nullopt;
-        std::optional<std::pair<SplitIt, SplitIt>> splitsToSwap = std::nullopt;
-
-        for (auto splitIt = splits.begin(); splitIt < splits.end(); ++splitIt) {
-            ImGui::PushID(splitIt - splits.begin());
-            const auto treeHeader = splitIt->name + "###0";
-            const auto treeOpen = ImGui::TreeNodeEx(treeHeader.c_str(), ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_FramePadding);
-
-            const auto offset = 126.f + (treeOpen ? 0.f : 21.f);
-            ImGui::SameLine(ImGui::GetContentRegionAvail().x - offset);
-            ImGui::PushItemWidth(70.f);
-            if (ImGui::InputText("", &splitIt->displayTrackedTime)) {
-                splitIt->trackedTime = stringToTime(splitIt->displayTrackedTime);
-                splitIt->displayTrackedTime = timeToString(splitIt->trackedTime);
-            }
-            ImGui::PopItemWidth();
-            ImGui::SameLine();
-            if (ImGui::Button("X", ImVec2(20, 0))) {
-                splitToDelete = splitIt;
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("^", ImVec2(20, 0)) && splitIt != splits.begin()) {
-                splitsToSwap = {splitIt - 1, splitIt};
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("v", ImVec2(20, 0)) && splitIt + 1 != splits.end()) {
-                splitsToSwap = {splitIt, splitIt + 1};
-            }
-
-            if (treeOpen) {
-                ImGui::PushID(0);
-                drawConditionSetSelector(splitIt->conditions);
-                ImGui::SameLine();
-                drawTriggerSelector(splitIt->trigger, splitIt->triggerData, 100.f);
-                ImGui::PopID();
-                ImGui::SameLine();
-                ImGui::PushItemWidth(200.f);
-                ImGui::InputText("Name", &splitIt->name);
-                ImGui::PopItemWidth();
-                ImGui::SameLine();
-                ImGui::PushItemWidth(100.f);
-                if (ImGui::InputText("Segment PB", &splitIt->displayPBTime)) {
-                    splitIt->pbSegmentTime = stringToTime(splitIt->displayPBTime);
-                    splitIt->displayPBTime = timeToString(splitIt->pbSegmentTime);
-                }
-                ImGui::PopItemWidth();
-                ImGui::TreePop();
-            }
-            ImGui::PopID();
-        }
-        if (splitToDelete.has_value()) splits.erase(splitToDelete.value());
-        if (splitsToSwap.has_value()) std::swap(*splitsToSwap->first, *splitsToSwap->second);
-    }
     void rightAlignedText(const std::string& s)
     {
         auto posX = (ImGui::GetCursorPosX() + ImGui::GetColumnWidth() - ImGui::CalcTextSize(s.c_str()).x - ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
@@ -442,6 +386,64 @@ namespace {
     }
 } // namespace
 
+void GWSplits::drawSplits(std::vector<Split>& splits)
+{
+    using SplitIt = decltype(splits.begin());
+    std::optional<SplitIt> splitToDelete = std::nullopt;
+    std::optional<std::pair<SplitIt, SplitIt>> splitsToSwap = std::nullopt;
+
+    for (auto splitIt = splits.begin(); splitIt < splits.end(); ++splitIt) {
+        ImGui::PushID(splitIt - splits.begin());
+        const auto treeHeader = splitIt->name + "###0";
+        const auto treeOpen = ImGui::TreeNodeEx(treeHeader.c_str(), ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_FramePadding);
+
+        const auto offset = 126.f + (treeOpen ? 0.f : 21.f);
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - offset);
+        ImGui::PushItemWidth(70.f);
+        if (ImGui::InputText("", &splitIt->displayTrackedTime)) {
+            splitIt->trackedTime = stringToTime(splitIt->displayTrackedTime);
+            splitIt->displayTrackedTime = timeToString(splitIt->trackedTime);
+        }
+        ImGui::PopItemWidth();
+        ImGui::SameLine();
+        if (ImGui::Button("X", ImVec2(20, 0))) {
+            splitToDelete = splitIt;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("^", ImVec2(20, 0)) && splitIt != splits.begin()) {
+            splitsToSwap = {splitIt - 1, splitIt};
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("v", ImVec2(20, 0)) && splitIt + 1 != splits.end()) {
+            splitsToSwap = {splitIt, splitIt + 1};
+        }
+
+        if (treeOpen) {
+            ImGui::PushID(0);
+            drawConditionSetSelector(splitIt->conditions);
+            ImGui::SameLine();
+            drawTriggerSelector(splitIt->trigger, splitIt->triggerData, 100.f);
+            ImGui::PopID();
+            ImGui::SameLine();
+            ImGui::PushItemWidth(200.f);
+            ImGui::InputText("Name", &splitIt->name);
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+            ImGui::PushItemWidth(100.f);
+            if (ImGui::InputText("Segment PB", &splitIt->displayPBTime)) {
+                splitIt->pbSegmentTime = stringToTime(splitIt->displayPBTime);
+                splitIt->displayPBTime = timeToString(splitIt->pbSegmentTime);
+                if (currentRun) // Update sum of best in case we're editing the current run
+                    sumOfBest = std::accumulate(currentRun->splits.begin(), currentRun->splits.end(), 0, [](int sum, const Split& s) { return sum + s.pbSegmentTime; });
+            }
+            ImGui::PopItemWidth();
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
+    if (splitToDelete.has_value()) splits.erase(splitToDelete.value());
+    if (splitsToSwap.has_value()) std::swap(*splitsToSwap->first, *splitsToSwap->second);
+}
 void GWSplits::drawRuns()
 {
     using RunIt = decltype(runs.begin());
