@@ -11,6 +11,7 @@
 #include <GWCA/Packets/StoC.h>
 #include <GWCA/Constants/Constants.h>
 
+#include <GWCA/Managers/ChatMgr.h>
 #include <GWCA/Managers/StoCMgr.h>
 #include <GWCA/Managers/MapMgr.h>
 #include <GWCA/Managers/UIMgr.h>
@@ -424,6 +425,21 @@ namespace {
             split.displayPBTime = "0:00.0";
         }
     }
+
+    std::string replacePlaceholders(std::string_view string, std::unordered_map<std::string, std::string> &variables)
+    {
+        auto result = std::string{string};
+
+        for (const auto& [name, value] : variables) {
+            while (true) {
+                const auto index = result.find("$" + name);
+                if (index == std::string::npos) break;
+                result.replace(index, name.size() + 1, value);
+            }
+        }
+
+        return result;
+    }
 } // namespace
 
 void GWSplits::drawRuns()
@@ -664,12 +680,40 @@ void GWSplits::Draw(IDirect3DDevice9* pDevice)
                 displaySplits = displaySplits.subspan(std::max(start, 0), std::min(totalSplits, total));
             }
 
+            int previousSplitTime = 0;
+
             for (const auto& split : displaySplits) {
                 ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                if (split.completed) {
+                    ImGui::PushID(&split);
+                    ImGui::Selectable("##ping_split###ID", false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap);
+
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip("Click to send to team chat");
+                    }
+
+                    if (ImGui::IsItemClicked()) {
+                        std::unordered_map<std::string, std::string> variables = {
+                            {"name", split.name},
+                            {"time", timeToString(split.currentTime)},
+                            {"duration", timeToString(split.currentTime - previousSplitTime)},
+                            {"diff", timeToString(split.currentTime - split.trackedTime, ToStringStyle::SecondsCentiseconds)},
+                            {"reference", timeToString(split.trackedTime)},
+                            {"pb", timeToString(split.pbSegmentTime)},
+                        };
+                        auto result = replacePlaceholders(splitMessage, variables);
+                        GW::Chat::SendChat("#", result.c_str());
+                    }
+                }
+
                 if (&split == &*currentSplitIt) {
                     ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, ImGui::GetColorU32(ImVec4{0.3725f, 0.3961f, 0.7529f, 0.6f}));
                 }
-                ImGui::TableNextColumn();
+
+                ImGui::TableSetColumnIndex(0);
+                ImGui::SameLine();
                 ImGui::Text(split.name.c_str());
                 ImGui::TableNextColumn();
 
@@ -697,6 +741,12 @@ void GWSplits::Draw(IDirect3DDevice9* pDevice)
 
                 ImGui::TableNextColumn();
                 ImGui::Text(timeToString(split.trackedTime).c_str());
+
+                if (split.completed) {
+                    ImGui::PopID();
+                }
+
+                previousSplitTime = split.currentTime;
             }
             ImGui::EndTable();
         }
@@ -760,6 +810,8 @@ void GWSplits::DrawSettings()
     if (ImGui::DragFloat2("Position", reinterpret_cast<float*>(&pos), 1.0f, 0.0f, 0.0f, "%.0f")) {
         ImGui::SetWindowPos(Name(), pos);
     }
+    ImGui::Checkbox("Lock Position", &lock_move);
+    ImGui::SameLine();
     ImGui::Checkbox("Lock Size", &lock_size);
 
     ImGui::Text("Display: ");
@@ -773,6 +825,21 @@ void GWSplits::DrawSettings()
     }
 
     ImGui::Combo("Text size", &fontSizeIndex, fontSizeNames, 4);
+
+    ImGui::PopItemWidth();
+    ImGui::InputText("Split message", &splitMessage);
+    ImGui::SameLine();
+
+    ImGui::ShowHelp("This message is shown in team chat when clicking on a completed split.\n"
+                    "The following placeholders will be replaced:\n"
+                    "\t$name: Name of the split\n"
+                    "\t$time: Completion time of the split\n"
+                    "\t$duration: Duration of the split\n"
+                    "\t$diff: Difference between completion time and reference time\n"
+                    "\t$reference: Time of the configured reference run\n"
+                    "\t$pb: Personal best split duration"
+    );
+
     ImGui::Unindent();
 
     ImGui::Text("Show: ");
@@ -839,6 +906,7 @@ void GWSplits::loadFromIniFile(const wchar_t* filePath)
     showSumOfBest = ini.GetBoolValue(Name(), "showSumOfBest", true);
     showLastSegment = ini.GetBoolValue(Name(), "showLastSegment", true);
     fontSizeIndex = ini.GetLongValue(Name(), "fontSize", 2);
+    splitMessage = ini.GetValue(Name(), "splitMessage", "[$name] ~ Time: $time ~ Duration: $duration");
 
     if (std::string read = ini.GetValue(Name(), "runs", ""); !read.empty()) {
         const auto decoded = decodeString(std::move(read));
@@ -887,6 +955,7 @@ void GWSplits::SaveSettings(const wchar_t* folder)
     ini.SetBoolValue(Name(), "showSumOfBest", showSumOfBest);
     ini.SetBoolValue(Name(), "showLastSegment", showLastSegment);
     ini.SetLongValue(Name(), "fontSize", fontSizeIndex);
+    ini.SetValue(Name(), "splitMessage", splitMessage.c_str());
 
     OutputStream stream;
     for (const auto& run : runs) {
