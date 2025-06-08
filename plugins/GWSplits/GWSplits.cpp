@@ -704,7 +704,7 @@ void GWSplits::Draw(IDirect3DDevice9* pDevice)
                             {"pb", timeToString(split.pbSegmentTime)},
                         };
                         auto result = replacePlaceholders(splitMessage, variables);
-                        GW::Chat::SendChat("#", result.c_str());
+                        GW::Chat::SendChat('#', result.c_str());
                     }
                 }
 
