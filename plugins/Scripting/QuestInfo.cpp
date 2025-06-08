@@ -15,6 +15,7 @@
 #include <enumUtils.h>
 
 #include <ranges>
+#include <chrono>
 
 namespace {
     std::wstring getObjectiveContent(std::wstring_view enc_str)
@@ -104,13 +105,13 @@ void QuestInfo::decodeStrings()
 {
     if (const auto questLog = GW::QuestMgr::GetQuestLog()) 
     {
-        for (const auto& quest : *questLog) 
+        for (auto& quest : *questLog) 
         {
             if (!decodedStrings.contains(quest.name)) 
                 GW::UI::AsyncDecodeStr(quest.name, &decodedStrings[quest.name]);
-            if (!quest.objectives) 
-                GW::QuestMgr::RequestQuestInfo(&quest);
-            if (quest.objectives && !decodedStrings.contains(quest.objectives)) 
+            if (!quest.objectives)
+                objectivesToDecode.push(&quest);
+            else if (!decodedStrings.contains(quest.objectives)) 
                 GW::UI::AsyncDecodeStr(quest.objectives, &decodedStrings[quest.objectives]);
         }
     }
@@ -164,4 +165,21 @@ void QuestInfo::terminate()
     GW::StoC::RemovePostCallback<GW::Packet::StoC::QuestAdd>(&QuestAdd_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::DisplayDialogue>(&DisplayDialogue_Entry);
     GW::StoC::RemoveCallbacks(&UpdateQuestnames_Entry);
+}
+
+void QuestInfo::update()
+{
+    if (objectivesToDecode.empty()) return;
+
+    const auto& quest = objectivesToDecode.front();
+    if (!quest || quest->objectives) 
+    {
+        objectivesToDecode.pop();
+        return;
+    }
+
+    GW::QuestMgr::RequestQuestInfo(quest);
+    if (quest->objectives)
+        GW::UI::AsyncDecodeStr(quest->objectives, &decodedStrings[quest->objectives]);
+    objectivesToDecode.pop();
 }

@@ -887,6 +887,8 @@ void SpeedrunScriptingTools::Update(float delta)
         return;
     }
 
+    QuestInfo::getInstance().update();
+
     std::erase_if(m_currentScripts, [](const Script& s){return s.actions.empty();});
     for (auto& currentScript : m_currentScripts) 
     {

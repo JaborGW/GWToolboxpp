@@ -529,7 +529,7 @@ void GWSplits::Update(float diff)
         }
     }
 
-    if (!currentRun || currentRun->splits.empty())
+    if (!currentRun || currentRun->splits.empty() || !isCurrentRunTracked)
     {
         return;
     }

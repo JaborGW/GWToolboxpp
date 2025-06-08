@@ -3,10 +3,14 @@
 #include <Enums.h>
 
 #include <unordered_map>
+#include <queue>
 #include <optional>
 
-namespace GW::Constants {
-    enum class QuestID : uint32_t;
+namespace GW {
+    namespace Constants {
+        enum class QuestID : uint32_t;
+    }
+    struct Quest;
 }
 
 // Abstracts away the logic of finding and getting the status/name of quests in the quest log
@@ -38,6 +42,7 @@ public:
 
     void initialize();
     void terminate();
+    void update();
 
     QuestInfo(const QuestInfo&) = delete;
     QuestInfo(QuestInfo&&) = delete;
@@ -49,4 +54,6 @@ private:
 
     std::unordered_map<std::wstring, std::wstring> decodedStrings;
     std::unordered_map<uint32_t, QuestStatus> missionObjectiveStatus;
+
+    std::queue<GW::Quest*> objectivesToDecode;
 };
