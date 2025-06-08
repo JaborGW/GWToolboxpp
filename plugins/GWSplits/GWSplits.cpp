@@ -702,7 +702,7 @@ void GWSplits::Draw(IDirect3DDevice9* pDevice)
                             {"reference", timeToString(split.trackedTime)},
                             {"pb", timeToString(split.pbSegmentTime)},
                         };
-                        auto result = replacePlaceholders(splitMessage, variables);
+                        auto result = replacePlaceholders(splitMessage, std::move(variables));
                         GW::Chat::SendChat('#', result.c_str());
                     }
                 }
@@ -816,7 +816,7 @@ void GWSplits::DrawSettings()
     ImGui::Text("Display: ");
     ImGui::Indent();
     ImGui::PushItemWidth(150.f);
-    ImGui::DragInt("Total splits", &totalSplits, 1, 0, 0);
+    ImGui::DragInt("Displayed splits", &totalSplits, 1, 0, 0);
     ImGui::SameLine();
     ImGui::ShowHelp("Set to 0 to show all splits");
     if (totalSplits > 0) {
