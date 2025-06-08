@@ -541,11 +541,6 @@ void GWSplits::Update(float diff)
         });
     }
 
-    if (currentRun && !checkConditions(currentRun->trackConditions, false))
-    {
-        return;
-    }
-
     auto& currentSplits = currentRun->splits;
     auto currentSplitIt = std::ranges::find_if(currentSplits, [](const Split& split) { return !split.completed; });
 
