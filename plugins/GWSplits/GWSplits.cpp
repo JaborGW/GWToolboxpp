@@ -426,7 +426,7 @@ namespace {
         }
     }
 
-    std::string replacePlaceholders(std::string_view string, std::unordered_map<std::string, std::string> &variables)
+    std::string replacePlaceholders(std::string_view string, std::unordered_map<std::string, std::string>&& variables)
     {
         auto result = std::string{string};
 
@@ -558,7 +558,7 @@ void GWSplits::Update(float diff)
         else 
         {
             const auto lastSegmentTime = std::prev(currentSplitIt)->currentTime;
-            const auto bestCurrentSegmentTime = std::max(currentSplitIt->pbSegmentTime, currentSplitIt->currentTime - lastSegmentTime);
+            const auto bestCurrentSegmentTime = std::max(currentSplitIt->pbSegmentTime, segmentTime);
             bestPossibleTime = std::accumulate(std::next(currentSplitIt), currentSplits.end(), lastSegmentTime + bestCurrentSegmentTime, [](int sum, const Split& s) { return sum + s.pbSegmentTime; });
         }
     }
