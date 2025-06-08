@@ -32,7 +32,6 @@ DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 namespace {
     GW::HookEntry InstanceLoadStart_Entry;
     GW::HookEntry InstanceTimer_Entry;
-    GW::HookEntry InstanceLoadInfo_Entry;
     GW::HookEntry DisplayDialogue_Entry;
     GW::HookEntry DungeonReward_Entry;
     GW::HookEntry DoACompleteZone_Entry;
@@ -60,6 +59,7 @@ namespace {
     constexpr auto grey = ImVec4{0.7f, 0.7f, 0.7f, 1.f};
     constexpr auto gold = ImVec4{0.95686f, 0.7882f, 0.f, 1.f};
     constexpr auto white = ImVec4{1.f, 1.f, 1.f, 1.f};
+    constexpr auto currentSplitColor = ImVec4{0.3725f, 0.3961f, 0.7529f, 0.6f};
     const wchar_t* settingsFolder = nullptr; // Folder loaded from. Used for PB saving button
 
     std::chrono::steady_clock::time_point instanceStart;
@@ -709,7 +709,7 @@ void GWSplits::Draw(IDirect3DDevice9* pDevice)
                 }
 
                 if (&split == &*currentSplitIt) {
-                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, ImGui::GetColorU32(ImVec4{0.3725f, 0.3961f, 0.7529f, 0.6f}));
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, ImGui::GetColorU32(currentSplitColor));
                 }
 
                 ImGui::TableSetColumnIndex(0);
@@ -1018,10 +1018,6 @@ void GWSplits::Initialize(ImGuiContext* ctx, ImGuiAllocFns fns, HMODULE toolbox_
         instanceStart = correctedInstanceStart;
     });
 
-    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::InstanceLoadInfo>(&InstanceLoadInfo_Entry, [this](GW::HookStatus*, GW::Packet::StoC::InstanceLoadInfo*) -> void 
-    {
-        handleTrigger(Trigger::InstanceLoad);
-    });
     GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::DisplayDialogue>(&DisplayDialogue_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::DisplayDialogue* packet) {
         GW::UI::AsyncDecodeStr(packet->message, &onDisplayDialogDecoded, this);
     });
@@ -1113,7 +1109,6 @@ void GWSplits::SignalTerminate()
 {
     GW::StoC::RemovePostCallback<GW::Packet::StoC::InstanceLoadInfo>(&InstanceLoadStart_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::InstanceLoadInfo>(&InstanceTimer_Entry);
-    GW::StoC::RemovePostCallback<GW::Packet::StoC::InstanceLoadInfo>(&InstanceLoadInfo_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::DisplayDialogue>(&DisplayDialogue_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::DungeonReward>(&DungeonReward_Entry);
     GW::StoC::RemovePostCallback<GW::Packet::StoC::DoACompleteZone>(&DoACompleteZone_Entry);
