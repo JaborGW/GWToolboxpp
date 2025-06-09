@@ -4,6 +4,7 @@
 #include <InstanceInfo.h>
 #include <QuestInfo.h>
 #include <enumUtils.h>
+#include <Keys.h>
 
 #include <BackupManager.h>
 #include <PluginUtils.h>
@@ -15,6 +16,7 @@
 #include <GWCA/Managers/StoCMgr.h>
 #include <GWCA/Managers/MapMgr.h>
 #include <GWCA/Managers/UIMgr.h>
+#include <GWCA/Managers/MemoryMgr.h>
 #include <GWCA/Managers/ChatMgr.h>
 
 #include <GWCA/GWCA.h>
@@ -167,8 +169,9 @@ namespace {
         return result;
     }
 
-    void drawConditionSetSelector(std::vector<ConditionPtr>& conditions)
+    bool drawConditionSetSelector(std::vector<ConditionPtr>& conditions)
     {
+        bool hasEditedSettings = false;
         using ConditionIt = decltype(conditions.begin());
         std::optional<ConditionIt> conditionToDelete = std::nullopt;
         std::optional<std::pair<ConditionIt, ConditionIt>> conditionsToSwap = std::nullopt;
@@ -186,7 +189,7 @@ namespace {
                 if (it + 1 != conditions.end()) conditionsToSwap = {it, it + 1};
             }
             ImGui::SameLine();
-            (*it)->drawSettings();
+            hasEditedSettings |= (*it)->drawSettings();
             ImGui::PopID();
         }
         if (conditionToDelete.has_value()) conditions.erase(conditionToDelete.value());
@@ -196,6 +199,7 @@ namespace {
         {
             conditions.push_back(std::move(newCondition));
         }
+        return hasEditedSettings;
     }
     void rightAlignedText(const std::string& s)
     {
@@ -386,8 +390,10 @@ namespace {
     }
 } // namespace
 
-void GWSplits::drawSplits(std::vector<Split>& splits)
+bool GWSplits::drawSplits(std::vector<Split>& splits)
 {
+    bool hasEditedSettings = false;
+
     using SplitIt = decltype(splits.begin());
     std::optional<SplitIt> splitToDelete = std::nullopt;
     std::optional<std::pair<SplitIt, SplitIt>> splitsToSwap = std::nullopt;
@@ -420,7 +426,7 @@ void GWSplits::drawSplits(std::vector<Split>& splits)
 
         if (treeOpen) {
             ImGui::PushID(0);
-            drawConditionSetSelector(splitIt->conditions);
+            hasEditedSettings |= drawConditionSetSelector(splitIt->conditions);
             ImGui::SameLine();
             drawTriggerSelector(splitIt->trigger, splitIt->triggerData, 100.f);
             ImGui::PopID();
@@ -443,9 +449,13 @@ void GWSplits::drawSplits(std::vector<Split>& splits)
     }
     if (splitToDelete.has_value()) splits.erase(splitToDelete.value());
     if (splitsToSwap.has_value()) std::swap(*splitsToSwap->first, *splitsToSwap->second);
+
+    return hasEditedSettings;
 }
-void GWSplits::drawRuns()
+bool GWSplits::drawRuns()
 {
+    bool hasEditedSettings = false;
+
     using RunIt = decltype(runs.begin());
     std::optional<RunIt> runToDelete = std::nullopt;
     std::optional<std::pair<RunIt, RunIt>> runsToSwap = std::nullopt;
@@ -472,13 +482,13 @@ void GWSplits::drawRuns()
 
         if (treeOpen) {
             if (ImGui::TreeNodeEx("Track", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
-                drawConditionSetSelector((*runIt)->trackConditions);
+                hasEditedSettings |= drawConditionSetSelector((*runIt)->trackConditions);
 
                 ImGui::TreePop();
             }
 
             if (ImGui::TreeNodeEx("Splits", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
-                drawSplits((*runIt)->splits);
+                hasEditedSettings |= drawSplits((*runIt)->splits);
                 if (ImGui::Button("Add split", ImVec2(100, 0))) 
                 {
                     (*runIt)->splits.push_back({});
@@ -510,13 +520,16 @@ void GWSplits::drawRuns()
     }
     if (runToDelete.has_value()) runs.erase(runToDelete.value());
     if (runsToSwap.has_value()) std::swap(*runsToSwap->first, *runsToSwap->second);
+
+    return hasEditedSettings;
 }
 
 void GWSplits::Update(float diff)
 {
     ToolboxUIPlugin::Update(diff);
 
-    if (!isCurrentRunTracked) {
+    if (!isCurrentRunTracked) 
+    {
         for (auto& run : runs) {
             if (checkConditions(run->trackConditions, false)) {
                 if (currentRun != run) {
@@ -524,6 +537,7 @@ void GWSplits::Update(float diff)
                 }
                 currentRun = run;
                 isCurrentRunTracked = true;
+                refreshDisabledKeys();
                 break;
             }
         }
@@ -586,6 +600,8 @@ void GWSplits::resetRun()
             split.completed = false;
         }
     }
+
+    refreshDisabledKeys();
 }
 
 int GWSplits::getRunTime()
@@ -618,7 +634,46 @@ void GWSplits::completeSplit(std::vector<Split>::iterator currentSplitIt)
     });
 
     segmentStart = currentSplitIt->currentTime;
+    refreshDisabledKeys();
+}
 
+void GWSplits::refreshDisabledKeys()
+{
+    std::unordered_set<Hotkey> newDisabledKeys;
+
+    if (const auto run = currentRun) 
+    {
+        if (!isCurrentRunTracked) 
+        {
+            disabledKeys = std::move(newDisabledKeys);
+            return;
+        }
+        const auto activeSplit = std::ranges::find_if(run->splits, [](const Split& s){return !s.completed;});
+        if (activeSplit != run->splits.end()) 
+        {
+            for (const auto& condition : activeSplit->conditions) 
+            {
+                if (!condition) continue;
+                for (const auto& key : condition->disabledKeys())
+                    newDisabledKeys.insert(key);
+            }
+        }
+    }
+    else 
+    {
+        for (const auto& r : runs) 
+        {
+            if (!r) continue;
+            for (const auto& condition : r->trackConditions) 
+            {
+                if (!condition) continue;
+                for (const auto& key : condition->disabledKeys())
+                    newDisabledKeys.insert(key);
+            }
+        }
+    }
+
+    disabledKeys = std::move(newDisabledKeys);
 }
 
 void GWSplits::Draw(IDirect3DDevice9* pDevice)
@@ -817,7 +872,8 @@ void GWSplits::DrawSettings()
     ImGui::DragInt("Displayed splits", &totalSplits, 1, 0, 0);
     ImGui::SameLine();
     ImGui::ShowHelp("Set to 0 to show all splits");
-    if (totalSplits > 0) {
+    if (totalSplits > 0) 
+    {
         ImGui::DragInt("Upcoming splits", &upcomingSplits, 1, 0, totalSplits);
     }
 
@@ -852,7 +908,10 @@ void GWSplits::DrawSettings()
     ImGui::Checkbox("Last segment", &showLastSegment);
     ImGui::Unindent();
 
-    drawRuns();
+    if (drawRuns()) 
+    {
+        refreshDisabledKeys();
+    }
     if (ImGui::Button("Add Run", ImVec2(ImGui::GetContentRegionAvail().x / 2, 0)))
     {
         runs.push_back(std::make_shared<Run>());
@@ -937,6 +996,77 @@ void GWSplits::LoadSettings(const wchar_t* folder)
     if (runs.empty() && BackupManager::getInstance().backupCount(PluginUtils::StringToWString(Name())) > 0) 
     {
         PluginUtils::logMessage("No runs loaded, but automatic backups found. Type \"/restore " + std::string{Name()} + " help\" to see options for restoring backups", Name());
+    }
+}
+
+bool GWSplits::WndProc(const UINT Message, const WPARAM wParam, LPARAM lparam)
+{
+    if (GW::Chat::GetIsTyping() || GW::MemoryMgr::GetGWWindowHandle() != GetActiveWindow()) {
+        return false;
+    }
+    Hotkey pressedKey{};
+    switch (Message) {
+        case WM_KEYDOWN:
+            if (const auto isRepeated = (int)lparam & (1 << 30)) break;
+            [[fallthrough]];
+        case WM_SYSKEYDOWN:
+        case WM_KEYUP:
+        case WM_SYSKEYUP:
+            pressedKey.keyData = static_cast<int>(wParam);
+            break;
+        case WM_XBUTTONDOWN:
+        case WM_MBUTTONDOWN:
+        case WM_XBUTTONDBLCLK:
+            if (LOWORD(wParam) & MK_MBUTTON) {
+                pressedKey.keyData = VK_MBUTTON;
+            }
+            if (LOWORD(wParam) & MK_XBUTTON1) {
+                pressedKey.keyData = VK_XBUTTON1;
+            }
+            if (LOWORD(wParam) & MK_XBUTTON2) {
+                pressedKey.keyData = VK_XBUTTON2;
+            }
+            break;
+        case WM_XBUTTONUP:
+        case WM_MBUTTONUP:
+            // leave keydata to none, need to handle special case below
+            break;
+        case WM_MBUTTONDBLCLK:
+            pressedKey.keyData = VK_MBUTTON;
+            break;
+        default:
+            break;
+    }
+
+    if (!pressedKey.keyData) return false;
+
+    switch (Message) {
+        case WM_KEYDOWN:
+        case WM_SYSKEYDOWN:
+        case WM_XBUTTONDOWN:
+        case WM_XBUTTONDBLCLK:
+        case WM_MBUTTONDOWN:
+        case WM_MBUTTONDBLCLK: {
+            if (GetKeyState(VK_CONTROL) < 0) {
+                pressedKey.modifier |= ModKey_Control;
+            }
+            if (GetKeyState(VK_SHIFT) < 0) {
+                pressedKey.modifier |= ModKey_Shift;
+            }
+            if (GetKeyState(VK_MENU) < 0) {
+                pressedKey.modifier |= ModKey_Alt;
+            }
+
+            return disabledKeys.contains(pressedKey);
+        }
+
+        case WM_KEYUP:
+        case WM_SYSKEYUP:
+
+        case WM_XBUTTONUP:
+        case WM_MBUTTONUP:
+        default:
+            return false;
     }
 }
 

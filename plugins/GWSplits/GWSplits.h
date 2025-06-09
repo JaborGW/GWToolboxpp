@@ -52,6 +52,8 @@ public:
     void LoadSettings(const wchar_t*) override;
     void SaveSettings(const wchar_t*) override;
     
+    bool WndProc(UINT, WPARAM, LPARAM) override;
+
     void Initialize(ImGuiContext*, ImGuiAllocFns, HMODULE) override;
     void SignalTerminate() override;
      
@@ -60,10 +62,9 @@ public:
 
 private:
     void completeSplit(std::vector<Split>::iterator);
-
     void resetRun();
-
     int getRunTime();
+    void refreshDisabledKeys();
 
     std::shared_ptr<Run> currentRun = nullptr;
     bool isCurrentRunTracked = false;
@@ -88,6 +89,8 @@ private:
     int lastSegmentGain = 0;
     ImU32 lastSegmentColor = 0;
 
-    void drawRuns();
-    void drawSplits(std::vector<Split>&);
+    std::unordered_set<Hotkey> disabledKeys;
+
+    bool drawRuns();
+    bool drawSplits(std::vector<Split>&);
 };
