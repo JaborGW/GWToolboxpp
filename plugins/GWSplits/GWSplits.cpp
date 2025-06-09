@@ -548,6 +548,8 @@ void GWSplits::Update(float diff)
         return;
     }
 
+    QuestInfo::getInstance().update();
+
     if (sumOfBest == 0) 
     {
         sumOfBest = std::accumulate(currentRun->splits.begin(), currentRun->splits.end(), 0, [](int sum, const Split& s) {
@@ -940,7 +942,7 @@ void GWSplits::DrawSettings()
         }
     }
 
-    ImGui::Text("Version 1.3. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.3.1 For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
     ImGui::TextColored(ImColor{102, 187, 238, 255}, discordInviteLink);
