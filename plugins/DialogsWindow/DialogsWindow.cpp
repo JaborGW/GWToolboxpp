@@ -7,6 +7,8 @@
 
 #include <GWCA/Utilities/Scanner.h>
 
+#include "PluginUtils.h"
+
 namespace {
     static bool functionPtrIsInitialized = false;
 
@@ -83,17 +85,6 @@ namespace {
         return true;
     }
 } // namespace
-
-namespace ImGui {
-    void ShowHelp(const char* help)
-    {
-        SameLine();
-        TextDisabled("%s", "(?)");
-        if (IsItemHovered()) {
-            SetTooltip("%s", help);
-        }
-    }
-} // namespace ImGui
 
 DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 {
@@ -243,7 +234,7 @@ void DialogsWindow::DrawSettings()
     ImGui::SameLine();
     ImGui::ShowHelp("Allows to send more dialogs, for example to allies in combat. Might flag your account, use at your own risk.");
 
-    ImGui::Text("Version 1.2.2. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.2.3. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";

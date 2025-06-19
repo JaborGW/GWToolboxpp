@@ -261,7 +261,7 @@ void ShadowstepPredictor::DrawSettings()
     ImGui::ColorEdit4("Partial", reinterpret_cast<float*>(&partialColor.x));
     ImGui::ColorEdit4("Failure", reinterpret_cast<float*>(&failureColor.x));
 
-    ImGui::Text("Version 1.0.2. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.0.3. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";

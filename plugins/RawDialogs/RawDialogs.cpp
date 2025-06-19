@@ -12,6 +12,8 @@
 #include <GWCA/Managers/AgentMgr.h>
 #include <GWCA/Utilities/Scanner.h>
 
+#include "PluginUtils.h"
+
 namespace {
     GW::HookEntry OnSentChat_HookEntry;
 
@@ -96,17 +98,6 @@ namespace {
     }
 } // namespace
 
-namespace ImGui {
-    void ShowHelp(const char* help)
-    {
-        SameLine();
-        TextDisabled("%s", "(?)");
-        if (IsItemHovered()) {
-            SetTooltip("%s", help);
-        }
-    }
-} // namespace ImGui
-
 DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 {
     static RawDialogs instance;
@@ -146,7 +137,7 @@ void RawDialogs::DrawSettings()
     ImGui::SameLine();
     ImGui::ShowHelp("Flags your account, use at your own risk.");
     
-    ImGui::Text("Version 1.1.2. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.1.3. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
