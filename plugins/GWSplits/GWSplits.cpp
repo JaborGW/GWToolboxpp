@@ -942,7 +942,7 @@ void GWSplits::DrawSettings()
         }
     }
 
-    ImGui::Text("Version 1.3.1 For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.3.2. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
     ImGui::TextColored(ImColor{102, 187, 238, 255}, discordInviteLink);
