@@ -10,6 +10,8 @@ target_sources(plugin_base INTERFACE
     "plugins/Base/Pathing.cpp"
     "plugins/Base/PluginUtils.h"
     "plugins/Base/PluginUtils.cpp"
+    "plugins/Base/Rendering.h"
+    "plugins/Base/Rendering.cpp"
     "plugins/Base/ToolboxUIPlugin.h"
     "plugins/Base/ToolboxUIPlugin.cpp")
 target_include_directories(plugin_base INTERFACE
@@ -54,6 +56,7 @@ add_tb_plugin(FlatBowRangeIndicator)
 add_tb_plugin(Follow)
 add_tb_plugin(LeechSignetCancel)
 add_tb_plugin(PitsSoulsWindow)
+add_tb_plugin(PathingVisualizer)
 add_tb_plugin(ProjectileIndicator)
 add_tb_plugin(RawDialogs)
 add_tb_plugin(ShadowstepPredictor)

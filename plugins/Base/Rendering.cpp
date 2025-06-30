@@ -378,6 +378,7 @@ namespace {
         return true;
     }
     std::vector<GenericPolyRenderable> renderables;
+    std::optional<GenericPolyRenderable> singletonPolyline;
 } // namespace
 
 namespace RenderingUtils {
@@ -386,6 +387,7 @@ namespace RenderingUtils {
         if (renderables.empty()) return;
         std::scoped_lock lock{renderables_mutex};
         renderables.clear();
+        singletonPolyline = {};
     }
 
     void addCircleToDraw(GW::GamePos center, float radius, unsigned int color, bool filled, std::optional<int> msToShow)
@@ -407,9 +409,22 @@ namespace RenderingUtils {
         }
     }
 
+    void addSingletonPolyline(std::vector<GW::GamePos>&& polyline, unsigned int color) 
+    {
+        std::scoped_lock lock{renderables_mutex};
+        singletonPolyline = GenericPolyRenderable{std::move(polyline), color, false, std::nullopt};
+    }
+
+    void clearSingletonPolyline() 
+    {
+        if (!singletonPolyline.has_value()) return;
+        std::scoped_lock lock{renderables_mutex};
+        singletonPolyline = {};
+    }
+
     void draw(IDirect3DDevice9* device)
     {
-        if (renderables.empty()) return;
+        if (renderables.empty() && !singletonPolyline) return;
         if (need_configure_pipeline) {
             if (!ConfigureProgrammablePipeline(device)) {
                 return;
@@ -457,14 +472,16 @@ namespace RenderingUtils {
 
             const auto map_id = GW::Map::GetMapID();
             const auto now = std::chrono::steady_clock::now();
-            renderables_mutex.lock();
+            std::scoped_lock lock{renderables_mutex};
             std::erase_if(renderables, [&now](const auto& r) {return r.despawnTime && now > *r.despawnTime;});
-            for (auto& renderable : renderables) {
-                if (renderable.map_id == map_id) {
-                    renderable.Draw(device);
-                }
+            for (auto& renderable : renderables) 
+            {
+                if (renderable.map_id == map_id) renderable.Draw(device);
             }
-            renderables_mutex.unlock();
+            if (singletonPolyline) 
+            {
+                singletonPolyline->Draw(device);
+            }
         }
 
         // restore immediate state:
