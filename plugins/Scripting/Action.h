@@ -46,6 +46,9 @@ enum class ActionType : int {
     RotateCharacter,
     KeyboardMove,
     Random,
+    AddHero,
+    KickHero,
+    LoadSkillbar,
 
     Count
 };

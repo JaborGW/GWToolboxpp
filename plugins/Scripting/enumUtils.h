@@ -66,6 +66,18 @@ void drawPolygonSelector(std::vector<GW::Vec2f>& polygon);
 bool pointIsInsidePolygon(const GW::GamePos pos, const std::vector<GW::Vec2f>& polygon);
 void drawDoorSelector(DoorID& id, Area& area);
 
+template<typename T>
+struct EnumButtonSettings {
+    int id = 0;
+    float width = 100.f;
+
+    std::optional<T> firstValue;
+    std::optional<T> lastValue;
+    std::optional<std::string_view> buttonTextOverWrite;
+    std::unordered_set<T> valuesToSkip;
+    std::unordered_map<std::string_view, std::string_view> renamedEntries;
+};
+
 template <typename T>
 void drawEnumButton(T firstValue, T lastValue, T& currentValue, int id = 0, float width = 100., std::optional<std::string_view> buttonText = std::nullopt, std::optional<T> skipValue = std::nullopt)
 {

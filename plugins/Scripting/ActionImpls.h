@@ -9,8 +9,11 @@
 
 #include <GWCA/GameContainers/GamePos.h>
 #include <GWCA/GameEntities/Agent.h>
+
+#include <GWCA/Constants/Constants.h>
 #include <GWCA/Constants/Skills.h>
 #include <GWCA/Constants/Constants.h>
+
 #include <GWCA/Utilities/Hook.h>
 #include <GWCA/Managers/UIMgr.h>
 
@@ -607,4 +610,47 @@ public:
 private:
     std::vector<ActionPtr> actions = {};
     mutable ActionPtr currentAction = nullptr;
+};
+
+class AddHeroAction : public Action {
+public:
+    AddHeroAction() = default;
+    AddHeroAction(InputStream&);
+    ActionType type() const final { return ActionType::AddHero; }
+    void initialAction() final;
+    void drawSettings() final;
+    void serialize(OutputStream&) const final;
+    ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost | ActionBehaviourFlag::ImmediateFinish; }
+
+private:
+    GW::Constants::HeroID heroId = GW::Constants::HeroID::NoHero;
+};
+
+class KickHeroAction : public Action {
+public:
+    KickHeroAction() = default;
+    KickHeroAction(InputStream&);
+    ActionType type() const final { return ActionType::KickHero; }
+    void initialAction() final;
+    void drawSettings() final;
+    void serialize(OutputStream&) const final;
+    ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost | ActionBehaviourFlag::ImmediateFinish; }
+
+private:
+    GW::Constants::HeroID heroId = GW::Constants::HeroID::Norgu;
+};
+
+class LoadSkillbarAction : public Action {
+public:
+    LoadSkillbarAction() = default;
+    LoadSkillbarAction(InputStream&);
+    ActionType type() const final { return ActionType::LoadSkillbar; }
+    void initialAction() final;
+    void drawSettings() final;
+    void serialize(OutputStream&) const final;
+    ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost | ActionBehaviourFlag::ImmediateFinish; }
+
+private:
+    GW::Constants::HeroID heroId = GW::Constants::HeroID::NoHero;
+    std::string build = "";
 };

@@ -2485,3 +2485,149 @@ ActionBehaviourFlags RandomAction::behaviour() const
     }
     return flags;
 }
+
+/// ------------- AddHeroAction -------------
+AddHeroAction::AddHeroAction(InputStream& stream)
+{
+    stream >> heroId;
+}
+
+void AddHeroAction::serialize(OutputStream& stream) const
+{
+    Action::serialize(stream);
+
+    stream << heroId;
+}
+
+void AddHeroAction::initialAction()
+{
+    Action::initialAction();
+
+    if (GW::Map::GetInstanceType() != GW::Constants::InstanceType::Outpost) return;
+
+    if (heroId != GW::Constants::HeroID::NoHero) 
+    {
+        GW::GameThread::Enqueue([heroId = this->heroId] { GW::PartyMgr::AddHero(heroId); });
+    }
+}
+
+void AddHeroAction::drawSettings()
+{
+    ImGui::PushID(drawId());
+    
+    ImGui::Text("Add");
+    ImGui::SameLine();
+    drawEnumButton(GW::Constants::HeroID::Norgu, GW::Constants::HeroID::ZeiRi, heroId);
+    ImGui::SameLine();
+    ImGui::Text("to the party");
+
+    ImGui::PopID();
+}
+
+/// ------------- KickHeroAction -------------
+KickHeroAction::KickHeroAction(InputStream& stream)
+{
+    stream >> heroId;
+}
+
+void KickHeroAction::serialize(OutputStream& stream) const
+{
+    Action::serialize(stream);
+
+    stream << heroId;
+}
+
+void KickHeroAction::initialAction()
+{
+    Action::initialAction();
+
+    if (GW::Map::GetInstanceType() != GW::Constants::InstanceType::Outpost) return;
+
+    if (heroId != GW::Constants::HeroID::NoHero) 
+    {
+        GW::GameThread::Enqueue([heroId = this->heroId]{ GW::PartyMgr::KickHero(heroId); });
+    }
+    else 
+    {
+        GW::GameThread::Enqueue([heroId = this->heroId]{ GW::PartyMgr::KickAllHeroes(); });
+    }
+}
+
+void KickHeroAction::drawSettings()
+{
+    ImGui::PushID(drawId());
+
+    const auto buttonTextOverwrite = heroId == GW::Constants::HeroID::NoHero ? "all heroes" : std::optional<std::string>{};
+
+    ImGui::Text("Kick");
+    ImGui::SameLine();
+    drawEnumButton(GW::Constants::HeroID::NoHero, GW::Constants::HeroID::ZeiRi, heroId, 0, 100.f, buttonTextOverwrite);
+    ImGui::SameLine();
+    ImGui::Text("from the party");
+
+    ImGui::PopID();
+}
+
+/// ------------- LoadSkillbarAction -------------
+LoadSkillbarAction::LoadSkillbarAction(InputStream& stream)
+{
+    stream >> heroId >> build;
+}
+
+void LoadSkillbarAction::serialize(OutputStream& stream) const
+{
+    Action::serialize(stream);
+
+    stream << heroId << build;
+}
+
+void LoadSkillbarAction::initialAction()
+{
+    const auto getHeroIndex = [](GW::Constants::HeroID heroId) -> std::optional<size_t>
+    {
+        const auto partyInfo = GW::PartyMgr::GetPartyInfo();
+        if (!partyInfo || !partyInfo->heroes.valid()) return std::nullopt;
+        const auto player = GW::Agents::GetControlledCharacter();
+        if (!player) return std::nullopt;
+        
+        const auto it = std::ranges::find_if(partyInfo->heroes, [&](const GW::HeroPartyMember& hero){return hero.owner_player_id == player->login_number && hero.hero_id == heroId;});
+        return it != partyInfo->heroes.end() ? (it - partyInfo->heroes.begin() + 1) : std::optional<size_t>{};
+    };
+
+    Action::initialAction();
+
+    if (build.empty() || GW::Map::GetInstanceType() != GW::Constants::InstanceType::Outpost) return;
+
+    if (heroId == GW::Constants::HeroID::NoHero) 
+    {
+        GW::GameThread::Enqueue([heroId = this->heroId, build = this->build] {
+            GW::SkillbarMgr::LoadSkillTemplate(build.c_str());
+        });
+    }
+    else if (const auto heroIndex = getHeroIndex(heroId)) 
+    {
+        GW::GameThread::Enqueue([heroIndex, build = this->build] {
+            GW::SkillbarMgr::LoadSkillTemplate(build.c_str(), *heroIndex);
+        });
+    }
+}
+
+void LoadSkillbarAction::drawSettings() 
+{
+    ImGui::PushID(drawId());
+
+    const auto buttonTextOverwrite = heroId == GW::Constants::HeroID::NoHero ? "Player" : std::optional<std::string>{};
+
+    ImGui::Text("Load skillbar");
+    ImGui::SameLine();
+    if (ImGui::InputText("", &build)) 
+    {
+        std::erase_if(build, [](char c){return std::isspace(c);});
+    }
+    ImGui::SameLine();
+    ImGui::Text("on");
+    ImGui::SameLine();
+    drawEnumButton(GW::Constants::HeroID::NoHero, GW::Constants::HeroID::ZeiRi, heroId, 0, 100.f, buttonTextOverwrite);
+
+    ImGui::PopID();
+}

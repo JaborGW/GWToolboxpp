@@ -6,7 +6,7 @@
 namespace {
     ActionPtr makeAction(ActionType type)
     {
-        static_assert((int)ActionType::Count == 41);
+        static_assert((int)ActionType::Count == 44);
         switch (type) {
             case ActionType::MoveTo:
                 return std::make_shared<MoveToAction>();
@@ -88,6 +88,12 @@ namespace {
                 return std::make_shared<KeyboardMoveAction>();
             case ActionType::Random:
                 return std::make_shared<RandomAction>();
+            case ActionType::AddHero:
+                return std::make_shared<AddHeroAction>();
+            case ActionType::KickHero:
+                return std::make_shared<KickHeroAction>();
+            case ActionType::LoadSkillbar:
+                return std::make_shared<LoadSkillbarAction>();
             default:
                 return nullptr;
         }
@@ -96,7 +102,7 @@ namespace {
 
 std::string_view toString(ActionType type)
 {
-    static_assert((int)ActionType::Count == 41);
+    static_assert((int)ActionType::Count == 44);
     switch (type) {
         case ActionType::MoveTo:
             return "Move to Position";
@@ -178,6 +184,12 @@ std::string_view toString(ActionType type)
             return "Keyboard move";
         case ActionType::Random:
             return "Random choice";
+        case ActionType::AddHero:
+            return "Add hero";
+        case ActionType::KickHero:
+            return "Kick hero";
+        case ActionType::LoadSkillbar:
+            return "Load skillbar";
         default:
             return "Unknown";
     }
@@ -185,7 +197,7 @@ std::string_view toString(ActionType type)
 
 ActionPtr readAction(InputStream& stream)
 {
-    static_assert((int)ActionType::Count == 41);
+    static_assert((int)ActionType::Count == 44);
     int type;
 
     stream >> type;
@@ -270,6 +282,12 @@ ActionPtr readAction(InputStream& stream)
             return std::make_shared<KeyboardMoveAction>(stream);
         case ActionType::Random:
             return std::make_shared<RandomAction>(stream);
+        case ActionType::AddHero:
+            return std::make_shared<AddHeroAction>(stream);
+        case ActionType::KickHero:
+            return std::make_shared<KickHeroAction>(stream);
+        case ActionType::LoadSkillbar:
+            return std::make_shared<LoadSkillbarAction>(stream);
         default:
             return nullptr;
     }
@@ -306,10 +324,11 @@ ActionPtr drawActionSelector(float width)
     if (ImGui::BeginPopup("Add action")) 
     {
         drawSubMenu("Movement", std::array{ActionType::MoveTo, ActionType::MoveToTargetPosition, ActionType::MoveInchwise, ActionType::KeyboardMove});
-        drawSubMenu("Skill", std::array{ActionType::Cast, ActionType::CastBySlot, ActionType::DropBuff, ActionType::UseHeroSkill});
+        drawSubMenu("Skill", std::array{ActionType::Cast, ActionType::CastBySlot, ActionType::DropBuff, ActionType::UseHeroSkill, ActionType::LoadSkillbar});
         drawSubMenu("Interaction", std::array{ActionType::SendDialog, ActionType::GoToTarget, ActionType::AutoAttackTarget});
         drawSubMenu("Targeting", std::array{ActionType::ChangeTarget, ActionType::StoreTarget, ActionType::RestoreTarget, ActionType::ClearTarget});
         drawSubMenu("Items", std::array{ActionType::EquipItem, ActionType::EquipItemBySlot, ActionType::MoveItemToSlot, ActionType::ChangeWeaponSet, ActionType::UseItem, ActionType::RepopMinipet, ActionType::UnequipItem});
+        drawSubMenu("Party", std::array{ActionType::AddHero, ActionType::KickHero});
         drawSubMenu("Chat", std::array{ActionType::SendChat, ActionType::PingTarget, ActionType::PingHardMode});
         drawSubMenu("Control flow", std::array{ActionType::Wait, ActionType::WaitUntil, ActionType::StopScript, ActionType::EnterCriticalSection, ActionType::LeaveCriticalSection});
         drawSubMenu("Variables", std::array{ActionType::SetVariable, ActionType::IncrementVariable, ActionType::DecrementVariable});
