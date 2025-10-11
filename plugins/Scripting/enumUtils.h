@@ -6,6 +6,8 @@
 #include <string_view>
 #include <vector>
 #include <optional>
+#include <unordered_map>
+#include <unordered_set>
 
 #include <GWCA/GameContainers/GamePos.h>
 
@@ -68,34 +70,41 @@ void drawDoorSelector(DoorID& id, Area& area);
 
 template<typename T>
 struct EnumButtonSettings {
+    std::optional<T> first;
+    T last;
+    
     int id = 0;
     float width = 100.f;
 
-    std::optional<T> firstValue;
-    std::optional<T> lastValue;
     std::optional<std::string_view> buttonTextOverWrite;
     std::unordered_set<T> valuesToSkip;
-    std::unordered_map<std::string_view, std::string_view> renamedEntries;
+    std::unordered_map<T, std::string_view> renamedEntries;
 };
 
 template <typename T>
-void drawEnumButton(T firstValue, T lastValue, T& currentValue, int id = 0, float width = 100., std::optional<std::string_view> buttonText = std::nullopt, std::optional<T> skipValue = std::nullopt)
+void drawEnumButton(T& currentValue, EnumButtonSettings<T>&& settings)
 {
-    ImGui::PushID(id);
+    ImGui::PushID(settings.id);
     using UnderlyingT = std::underlying_type_t<T>;
 
-    if (ImGui::Button((buttonText ? buttonText.value() : toString(currentValue)).data(), ImVec2(width, 0))) 
+    const auto getName = [&](T value) 
+    {
+        const auto it = settings.renamedEntries.find(value);
+        return it != settings.renamedEntries.end() ? it->second : toString(value);
+    };
+
+    if (ImGui::Button((settings.buttonTextOverWrite ? settings.buttonTextOverWrite.value().data() : getName(currentValue)).data(), ImVec2(settings.width, 0))) 
     {
         ImGui::OpenPopup("Enum popup");
     }
     if (ImGui::BeginPopup("Enum popup")) 
     {
-        for (auto i = (UnderlyingT)firstValue; i <= (UnderlyingT)lastValue; ++i) 
+        const auto firstValue = settings.first.value_or(T(UnderlyingT(0)));
+        for (auto i = (UnderlyingT)firstValue; i <= (UnderlyingT)settings.last; ++i) 
         {
-            if (skipValue && (UnderlyingT)skipValue.value() == i) 
+            if (settings.valuesToSkip.contains((T)i)) 
                 continue;
-
-            if (ImGui::Selectable(toString((T)i).data()))
+            if (ImGui::Selectable(getName((T)i).data()))
                 currentValue = (T)i;
         }
         ImGui::EndPopup();

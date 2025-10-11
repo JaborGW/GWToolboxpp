@@ -296,7 +296,7 @@ void MoveToAction::drawSettings(){
     ImGui::SameLine();
     ImGui::InputFloat("Accuracy", &accuracy, 0.0f, 0.0f);
     ImGui::SameLine();
-    drawEnumButton(MoveToBehaviour::SendOnce, MoveToBehaviour::ImmediateFinish, moveBehaviour, 0, 310.f);
+    drawEnumButton(moveBehaviour, {.last = MoveToBehaviour::ImmediateFinish, .width = 310.f});
     ImGui::PopItemWidth();
 
     ImGui::PopID();
@@ -382,7 +382,7 @@ void MoveToTargetPositionAction::drawSettings()
         ImGui::InputFloat("Accuracy", &accuracy, 0.0f, 0.0f);
     }
     ImGui::SameLine();
-    drawEnumButton(MoveToBehaviour::SendOnce, MoveToBehaviour::ImmediateFinish, moveBehaviour, 0, 310.f);
+    drawEnumButton(moveBehaviour, {.last = MoveToBehaviour::ImmediateFinish, .width = 310.f});
     ImGui::PopItemWidth();
 
     ImGui::PopID();
@@ -449,7 +449,7 @@ void MoveInchwiseAction::drawSettings()
     ImGui::SameLine();
     ImGui::Text("based on");
     ImGui::SameLine();
-    drawEnumButton(ReferenceFrame::Player, ReferenceFrame::Camera, refFrame,0, 180.f);
+    drawEnumButton(refFrame, {.last = ReferenceFrame::Camera, .width = 180.f});
     ImGui::PopItemWidth();
 
     ImGui::PopID();
@@ -745,7 +745,7 @@ void ChangeTargetAction::drawSettings()
     
     ImGui::Text("Sorting:");
     ImGui::SameLine();
-    drawEnumButton(Sorting::AgentId, Sorting::ModelID, sorting, 20, 150.);
+    drawEnumButton(sorting, {.last = Sorting::ModelID, .id = 20, .width = 150.f});
 
     ImGui::SameLine();
     ImGui::Checkbox("Rotate", &rotateThroughTargets);
@@ -890,7 +890,7 @@ void EquipItemBySlotAction::drawSettings()
     ImGui::SameLine();
     ImGui::Text("%s", itemName.c_str());
     ImGui::SameLine();
-    drawEnumButton(Bag::Backpack, Bag::EquipmentPack, bag, 0, 120.f);
+    drawEnumButton(bag, {.last = Bag::EquipmentPack, .width = 120.f});
     ImGui::SameLine();
     ImGui::PushItemWidth(80.f);
     ImGui::InputInt("Slot", &slot, 0);
@@ -929,7 +929,7 @@ void UnequipItemAction::drawSettings()
 
     ImGui::Text("Unequip item in slot");
     ImGui::SameLine();
-    drawEnumButton(EquippedItemSlot::Mainhand, EquippedItemSlot::Hands, slot, 0, 90.f);
+    drawEnumButton(slot, {.last = EquippedItemSlot::Hands, .width = 90.f});
 
     ImGui::PopID();
 }
@@ -1028,7 +1028,7 @@ void GoToTargetAction::drawSettings()
 
     ImGui::Text("Talk with NPC. Finish action");
     ImGui::SameLine();
-    drawEnumButton(GoToTargetFinishCondition::None, GoToTargetFinishCondition::DialogOpen, finishCondition, 0, 250.f);
+    drawEnumButton(finishCondition, {.last = GoToTargetFinishCondition::DialogOpen, .width = 250.f});
 
     ImGui::PopID();
 }
@@ -1141,7 +1141,7 @@ void SendChatAction::drawSettings()
 
     ImGui::Text("Send Chat Message:");
     ImGui::SameLine();
-    drawEnumButton(Channel::All, Channel::Log, channel);
+    drawEnumButton(channel, {.last = Channel::Log});
     ImGui::PushItemWidth(300.f);
     ImGui::SameLine();
     ImGui::InputText("", &message);
@@ -1885,7 +1885,7 @@ void UseHeroSkillAction::drawSettings()
     ImGui::SameLine();
     ImGui::Text("on hero");
     ImGui::SameLine();
-    drawEnumButton(GW::Constants::HeroID::NoHero, GW::Constants::HeroID::ZeiRi, hero);
+    drawEnumButton(hero, {.last = GW::Constants::HeroID::ZeiRi, .width = 130.f});
 
     ImGui::PopID();
 }
@@ -1970,7 +1970,7 @@ void GWKeyAction::drawSettings()
     ImGui::PushID(drawId());
     ImGui::Text("Guild Wars Key");
     ImGui::SameLine();
-    drawEnumButton<GW::UI::ControlAction>(GW::UI::ControlAction_Interact, GW::UI::ControlAction_OpenHeroCommander7, action, 0, 400.f);
+    drawEnumButton(action, {.first = GW::UI::ControlAction_Interact, .last = GW::UI::ControlAction_OpenHeroCommander7, .width = 400.f});
     ImGui::PopID();
 }
 
@@ -2193,7 +2193,7 @@ void MoveItemToSlotAction::drawSettings()
         }
     }
     ImGui::SameLine();
-    drawEnumButton(Bag::Backpack, Bag::EquipmentPack, bagId, 0, 120.f);
+    drawEnumButton(bagId, {.last = Bag::EquipmentPack, .width = 120.f});
     ImGui::SameLine();
     ImGui::PushItemWidth(50.f);
     ImGui::InputInt("Slot", &slot, 0);
@@ -2338,7 +2338,7 @@ void KeyboardMoveAction::drawSettings()
     ImGui::Text("Keyboard move");
 
     ImGui::SameLine();
-    drawEnumButton(MovementDirection::Forwards, MovementDirection::Backwards, movementDirection, 0, 150.f);
+    drawEnumButton(movementDirection, {.last = MovementDirection::Backwards, .width = 150.f});
 
     ImGui::SameLine();
     ImGui::Text("to");
@@ -2517,7 +2517,7 @@ void AddHeroAction::drawSettings()
     
     ImGui::Text("Add");
     ImGui::SameLine();
-    drawEnumButton(GW::Constants::HeroID::Norgu, GW::Constants::HeroID::ZeiRi, heroId);
+    drawEnumButton(heroId, {.last = GW::Constants::HeroID::ZeiRi, .width = 130.f});
     ImGui::SameLine();
     ImGui::Text("to the party");
 
@@ -2557,11 +2557,9 @@ void KickHeroAction::drawSettings()
 {
     ImGui::PushID(drawId());
 
-    const auto buttonTextOverwrite = heroId == GW::Constants::HeroID::NoHero ? "all heroes" : std::optional<std::string>{};
-
     ImGui::Text("Kick");
     ImGui::SameLine();
-    drawEnumButton(GW::Constants::HeroID::NoHero, GW::Constants::HeroID::ZeiRi, heroId, 0, 100.f, buttonTextOverwrite);
+    drawEnumButton(heroId, {.last = GW::Constants::HeroID::ZeiRi, .width = 130.f, .renamedEntries = {{GW::Constants::HeroID::NoHero, "All heroes"}}});
     ImGui::SameLine();
     ImGui::Text("from the party");
 
@@ -2616,18 +2614,18 @@ void LoadSkillbarAction::drawSettings()
 {
     ImGui::PushID(drawId());
 
-    const auto buttonTextOverwrite = heroId == GW::Constants::HeroID::NoHero ? "Player" : std::optional<std::string>{};
-
     ImGui::Text("Load skillbar");
     ImGui::SameLine();
+    ImGui::PushItemWidth(300.f);
     if (ImGui::InputText("", &build)) 
     {
         std::erase_if(build, [](char c){return std::isspace(c);});
     }
+    ImGui::PopItemWidth();
     ImGui::SameLine();
     ImGui::Text("on");
     ImGui::SameLine();
-    drawEnumButton(GW::Constants::HeroID::NoHero, GW::Constants::HeroID::ZeiRi, heroId, 0, 100.f, buttonTextOverwrite);
+    drawEnumButton(heroId, {.last = GW::Constants::HeroID::ZeiRi, .width = 130.f, .renamedEntries = {{GW::Constants::HeroID::NoHero, "Player"}}});
 
     ImGui::PopID();
 }

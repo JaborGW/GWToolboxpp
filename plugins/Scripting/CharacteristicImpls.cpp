@@ -122,7 +122,7 @@ void PositionCharacteristic::drawSettings()
     ImGui::SameLine();
     ImGui::InputFloat("y", &position.y, 0.0f, 0.0f);
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::InputFloat("", &distance, 0.0f, 0.0f);
     ImGui::PopItemWidth();
@@ -149,7 +149,7 @@ bool PositionPolygonCharacteristic::check(const GW::AgentLiving& agent) const
 }
 void PositionPolygonCharacteristic::drawSettings()
 {
-    drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
+    drawEnumButton(comp, {.last = IsIsNot::IsNot, .width = 40.f});
     ImGui::SameLine();
     ImGui::Text("within polygon");
     ImGui::SameLine();
@@ -179,7 +179,7 @@ void DistanceToPlayerCharacteristic::drawSettings()
     ImGui::PushItemWidth(90.f);
     ImGui::Text("Distance to player");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::InputFloat("", &distance, 0.0f, 0.0f);
     ImGui::PopItemWidth();
@@ -208,7 +208,7 @@ void DistanceToTargetCharacteristic::drawSettings()
     ImGui::PushItemWidth(90.f);
     ImGui::Text("Distance to target");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::InputFloat("", &distance, 0.0f, 0.0f);
     ImGui::PopItemWidth();
@@ -248,7 +248,7 @@ void DistanceToModelIdCharacteristic::drawSettings()
     ImGui::SameLine();
     drawModelIDSelector(modelId);
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::InputFloat("", &distance, 0.0f, 0.0f);
     ImGui::PopItemWidth();
@@ -274,13 +274,13 @@ void ClassCharacteristic::drawSettings()
 {
     ImGui::Text("Class");
     ImGui::SameLine();
-    drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
+    drawEnumButton(comp, {.last = IsIsNot::IsNot, .width = 40.f});
     ImGui::SameLine();
-    drawEnumButton(Class::Any, Class::Dervish, primary, 1);
+    drawEnumButton(primary, {.last = Class::Dervish, .id = 1});
     ImGui::SameLine();
     ImGui::Text("/");
     ImGui::SameLine();
-    drawEnumButton(Class::Any, Class::Dervish, secondary, 2);
+    drawEnumButton(secondary, {.last = Class::Dervish, .id = 2});
 }
 
 /// ------------- NameCharacteristic -------------
@@ -305,7 +305,7 @@ void NameCharacteristic::drawSettings()
 {
     ImGui::Text("Name");
     ImGui::SameLine();
-    drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
+    drawEnumButton(comp, {.last = IsIsNot::IsNot, .width = 40.f});
     ImGui::SameLine();
     ImGui::InputText("", &name);
 }
@@ -330,7 +330,7 @@ void HPCharacteristic::drawSettings()
     ImGui::PushItemWidth(50.f);
     ImGui::Text("Hit points");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::InputFloat("%", &hp, 0.0f, 0.0f);
     ImGui::PopItemWidth();
@@ -357,7 +357,7 @@ void HPRegenCharacteristic::drawSettings()
     ImGui::PushItemWidth(50.f);
     ImGui::Text("HP regeneration");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::InputInt("", &hpRegen, 0);
     ImGui::PopItemWidth();
@@ -383,7 +383,7 @@ void SpeedCharacteristic::drawSettings()
     ImGui::PushItemWidth(90.f);
     ImGui::Text("Speed");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::InputFloat("", &speed, 0.0f, 0.0f);
     ImGui::PopItemWidth();
@@ -409,9 +409,9 @@ void WeaponTypeCharacteristic::drawSettings()
 {
     ImGui::Text("Weapon Type");
     ImGui::SameLine();
-    drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
+    drawEnumButton(comp, {.last = IsIsNot::IsNot, .width = 40.f});
     ImGui::SameLine();
-    drawEnumButton(WeaponType::Any, WeaponType::Staff, weapon, 1);
+    drawEnumButton(weapon, {.last = WeaponType::Staff, .id = 1});
 }
 
 /// ------------- ModelCharacteristic -------------
@@ -433,7 +433,7 @@ void ModelCharacteristic::drawSettings()
 {
     ImGui::Text("Model / player number");
     ImGui::SameLine();
-    drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
+    drawEnumButton(comp, {.last = IsIsNot::IsNot, .width = 40.f});
     ImGui::SameLine();
     drawModelIDSelector(modelId, "");
 }
@@ -486,9 +486,9 @@ void AllegianceCharacteristic::drawSettings()
 {
     ImGui::Text("Allegiance");
     ImGui::SameLine();
-    drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
+    drawEnumButton(comp, {.last = IsIsNot::IsNot, .width = 40.f});
     ImGui::SameLine();
-    drawEnumButton(AgentType::Any, AgentType::Hostile, agentType, 1);
+    drawEnumButton(agentType, {.last = AgentType::Hostile, .id = 1});
 }
 
 /// ------------- StatusCharacteristic -------------
@@ -552,13 +552,13 @@ void StatusCharacteristic::drawSettings()
 {
     ImGui::Text("Status");
     ImGui::SameLine();
-    drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
+    drawEnumButton(comp, {.last = IsIsNot::IsNot, .width = 40.f});
     ImGui::SameLine();
-    drawEnumButton(Status::Enchanted, Status::Casting, status, 1);
+    drawEnumButton(status, {.last = Status::Casting, .id = 1});
     if (status == Status::Casting) 
     {
         ImGui::SameLine();
-        drawEnumButton(SkillType::Any, SkillType::Enchantment, skillType, 2);
+        drawEnumButton(skillType, {.last = SkillType::Enchantment, .id = 2});
     }
 }
 
@@ -579,7 +579,7 @@ bool SkillCharacteristic::check(const GW::AgentLiving& agent) const
 }
 void SkillCharacteristic::drawSettings()
 {
-    drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
+    drawEnumButton(comp, {.last = IsIsNot::IsNot, .width = 40.f});
     ImGui::SameLine();
     ImGui::Text("using skill");
     ImGui::SameLine();
@@ -607,7 +607,7 @@ bool BondCharacteristic::check(const GW::AgentLiving& agent) const
 }
 void BondCharacteristic::drawSettings()
 {
-    drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
+    drawEnumButton(comp, {.last = IsIsNot::IsNot, .width = 40.f});
     ImGui::SameLine();
     ImGui::Text("target of player maintained bond");
     ImGui::SameLine();
@@ -636,7 +636,7 @@ void AngleToPlayerForwardCharacteristic::drawSettings()
     ImGui::PushItemWidth(90.f);
     ImGui::Text("Has angle to player forward");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::InputFloat("", &angle, 0.0f, 0.0f);
     ImGui::PopItemWidth();
@@ -664,7 +664,7 @@ void AngleToCameraForwardCharacteristic::drawSettings()
     ImGui::PushItemWidth(90.f);
     ImGui::Text("Has angle to camera forward");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::InputFloat("", &angle, 0.0f, 0.0f);
     ImGui::PopItemWidth();
@@ -692,11 +692,11 @@ bool IsStoredTargetCharacteristic::check(const GW::AgentLiving& agent) const
 }
 void IsStoredTargetCharacteristic::drawSettings()
 {
-    drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
+    drawEnumButton(comp, {.last = IsIsNot::IsNot, .width = 40.f});
     ImGui::SameLine();
     ImGui::Text("stored target with");
     ImGui::SameLine();
-    drawEnumButton(IdRestriction::Any, IdRestriction::SpecificId, idRestrictionType, 1, 80.f);
+    drawEnumButton(idRestrictionType, {.last = IdRestriction::SpecificId, .id = 1, .width = 80.f});
     if (idRestrictionType == IdRestriction::SpecificId) 
     {
         ImGui::SameLine();

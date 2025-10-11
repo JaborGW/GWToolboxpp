@@ -989,12 +989,13 @@ void drawTriggerSelector(Trigger& trigger, TriggerData& triggerData, [[maybe_unu
     if (trigger == Trigger::None) 
     {
         #ifdef LiveSplitMode
-        drawEnumButton(Trigger::DisplayDialog, Trigger::DoaZoneComplete, trigger, 0, 100.f, "Add trigger");
+        drawEnumButton(trigger, {.first = Trigger::DisplayDialog, .last = Trigger::DoaZoneComplete, .buttonTextOverWrite = "Add trigger"});
         #else
-        drawEnumButton(Trigger::InstanceLoad, Trigger::DoaZoneComplete, trigger, 0, 100.f, "Add trigger");
+        drawEnumButton(trigger, {.first = Trigger::InstanceLoad, .last = Trigger::DoaZoneComplete, .buttonTextOverWrite = "Add trigger"});
         #endif
     }
-    else if (trigger == Trigger::Hotkey) {
+    else if (trigger == Trigger::Hotkey) 
+    {
         auto description = triggerData.hotkey.keyData ? makeHotkeyDescription(triggerData.hotkey) : "Click to change key";
         drawHotkeySelector(triggerData.hotkey, description, width - 20.f);
         ImGui::SameLine();
@@ -1006,7 +1007,8 @@ void drawTriggerSelector(Trigger& trigger, TriggerData& triggerData, [[maybe_unu
             triggerData.hotkey.modifier = 0;
         }
     }
-    else if (trigger == Trigger::ChatMessage) {
+    else if (trigger == Trigger::ChatMessage) 
+    {
         ImGui::PushItemWidth(200);
         ImGui::InputText("Trigger chat message", &triggerData.message);
         ImGui::PopItemWidth();
@@ -1016,12 +1018,13 @@ void drawTriggerSelector(Trigger& trigger, TriggerData& triggerData, [[maybe_unu
             triggerData.message = "";
         }
     }
-    else if (trigger == Trigger::BeginSkillCast) {
+    else if (trigger == Trigger::BeginSkillCast) 
+    {
         ImGui::Text("Trigger on begin skill");
         ImGui::SameLine();
         drawSkillIDSelector(triggerData.skillId, true);
         ImGui::SameLine();
-        drawEnumButton(AnyNoYes::Any, AnyNoYes::Yes, triggerData.hsr, 0, 50.f);
+        drawEnumButton(triggerData.hsr, {.last = AnyNoYes::Yes, .width = 50.f});
         ImGui::SameLine();
         ImGui::Text("HSR");
         ImGui::SameLine();
@@ -1031,7 +1034,8 @@ void drawTriggerSelector(Trigger& trigger, TriggerData& triggerData, [[maybe_unu
             triggerData.hsr = AnyNoYes::Any;
         }
     }
-    else if (trigger == Trigger::SkillCastInterrupt) {
+    else if (trigger == Trigger::SkillCastInterrupt) 
+    {
         ImGui::Text("Trigger on interrupt of");
         ImGui::SameLine();
         drawSkillIDSelector(triggerData.skillId, true);
@@ -1041,7 +1045,8 @@ void drawTriggerSelector(Trigger& trigger, TriggerData& triggerData, [[maybe_unu
             triggerData.skillId = GW::Constants::SkillID::No_Skill;
         }
     }
-    else if (trigger == Trigger::BeginCooldown) {
+    else if (trigger == Trigger::BeginCooldown) 
+    {
         ImGui::Text("Trigger on end skill");
         ImGui::SameLine();
         drawSkillIDSelector(triggerData.skillId, true);
@@ -1051,7 +1056,8 @@ void drawTriggerSelector(Trigger& trigger, TriggerData& triggerData, [[maybe_unu
             triggerData.skillId = GW::Constants::SkillID::No_Skill;
         }
     }
-    else if (trigger == Trigger::DisplayDialog) {
+    else if (trigger == Trigger::DisplayDialog) 
+    {
         ImGui::PushItemWidth(200);
         ImGui::InputText("Trigger display dialog", &triggerData.message);
         ImGui::PopItemWidth();
@@ -1061,10 +1067,11 @@ void drawTriggerSelector(Trigger& trigger, TriggerData& triggerData, [[maybe_unu
             triggerData.message = "";
         }
     }
-    else if (trigger == Trigger::DoaZoneComplete) {
+    else if (trigger == Trigger::DoaZoneComplete) 
+    {
         ImGui::Text("Trigger DoA zone complete");
         ImGui::SameLine();
-        drawEnumButton(DoaZone::Foundry,DoaZone::City, triggerData.doaZone);
+        drawEnumButton(triggerData.doaZone, {.first = DoaZone::Foundry, .last = DoaZone::City});
         ImGui::SameLine();
         if (ImGui::Button("X", ImVec2(20.f, 0))) {
             trigger = Trigger::None;

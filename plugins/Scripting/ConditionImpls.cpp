@@ -460,7 +460,7 @@ bool PartyPlayerCountCondition::drawSettings()
     ImGui::PushID(drawId());
     ImGui::Text("If the party size");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::PushItemWidth(30.f);
     ImGui::SameLine();
     ImGui::InputInt("", &count, 0);
@@ -496,7 +496,7 @@ bool PartyHasLoadedInCondition::drawSettings()
     ImGui::PushID(drawId());
     ImGui::Text("If");
     ImGui::SameLine();
-    drawEnumButton(PlayerConnectednessRequirement::All, PlayerConnectednessRequirement::Individual, req);
+    drawEnumButton(req, {.last = PlayerConnectednessRequirement::Individual});
     if (req == PlayerConnectednessRequirement::Individual)
     {
         ImGui::SameLine();
@@ -540,7 +540,7 @@ bool InstanceProgressCondition::drawSettings()
     ImGui::PushID(drawId());
     ImGui::Text("If the instance progress");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     
     ImGui::SameLine();
     ImGui::PushItemWidth(90.f);
@@ -683,7 +683,7 @@ bool PlayerHasSkillCondition::drawSettings()
     ImGui::SameLine();
     drawSkillIDSelector(id);
     ImGui::SameLine();
-    drawEnumButton(HasSkillRequirement::OnBar, HasSkillRequirement::ReadyToUse, requirement);
+    drawEnumButton(requirement, {.last = HasSkillRequirement::ReadyToUse});
     ImGui::SameLine();
     ImGui::ShowHelp("'Ready to use' checks energy requirement, cooldown, adrenaline and weapon type.\r\nEnergy requirement only takes into account base cost, QZ, expertise and mysticism.");
 
@@ -740,7 +740,7 @@ bool PlayerHasSkillBySlotCondition::drawSettings()
     if (slot < 1) slot = 1;
     if (slot > 8) slot = 8;
     ImGui::SameLine();
-    drawEnumButton(HasSkillRequirement::OffCooldown, HasSkillRequirement::ReadyToUse, requirement);
+    drawEnumButton(requirement, {.first = HasSkillRequirement::OffCooldown, .last = HasSkillRequirement::ReadyToUse});
     ImGui::SameLine();
     ImGui::ShowHelp("'Ready to use' checks energy requirement, cooldown, adrenaline and weapon type.\r\nEnergy requirement only takes into account base cost, QZ, expertise and mysticism.");
 
@@ -773,7 +773,7 @@ bool PlayerHasEnergyCondition::drawSettings()
     ImGui::PushID(drawId());
     ImGui::Text("If player energy");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::PushItemWidth(90.f);
     ImGui::InputInt("", &energy, 0);
@@ -869,7 +869,7 @@ bool PartyMemberStatusCondition::drawSettings()
     ImGui::PushID(drawId());
     ImGui::Text("If party window ally is alive");
     ImGui::SameLine();
-    drawEnumButton(AnyNoYes::Any, AnyNoYes::Yes, alive);
+    drawEnumButton(alive, {.last = AnyNoYes::Yes});
     ImGui::SameLine();
     ImGui::PushItemWidth(300.f);
     ImGui::InputText("Ally name", &name);
@@ -902,7 +902,7 @@ bool Deprecated_ObjectiveHasStateCondition::drawSettings()
     ImGui::SameLine();
     ImGui::InputInt("id", reinterpret_cast<int*>(&id), 0);
     ImGui::SameLine();
-    drawEnumButton(QuestStatus::NotStarted, QuestStatus::Failed, status);
+    drawEnumButton(status, {.last = QuestStatus::Failed});
     ImGui::SameLine();
     ImGui::ShowHelp("Objective ID, NOT quest ID!\nUW: Chamber 146, Restore 147, Escort 148, UWG 149, Vale 150, Waste 151, Pits 152, Planes 153, Mnts 154, Pools 155, Dhuum 157");
     ImGui::PopItemWidth();
@@ -971,7 +971,7 @@ bool InstanceTimeCondition::drawSettings()
     ImGui::PushID(drawId());
     ImGui::Text("If the instance time");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
 
     ImGui::PushItemWidth(90.f);
@@ -1086,7 +1086,7 @@ bool InstanceTypeCondition::drawSettings()
 
     ImGui::Text("If player is in");
     ImGui::SameLine();
-    drawEnumButton(GW::Constants::InstanceType::Outpost, GW::Constants::InstanceType::Explorable, instanceType);
+    drawEnumButton(instanceType, {.last = GW::Constants::InstanceType::Explorable});
 
     ImGui::PopID();
 
@@ -1187,7 +1187,7 @@ bool FoeCountCondition::drawSettings()
 
     ImGui::Text("If the number of enemies left in the instance");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::PushItemWidth(80.f);
     ImGui::InputInt("", &count, 0);
@@ -1221,7 +1221,7 @@ bool MoraleCondition::drawSettings()
 
     ImGui::Text("If player morale");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::PushItemWidth(80);
     ImGui::InputInt("% (negative values for DP)", &morale, 0);
@@ -1538,7 +1538,7 @@ bool ToggleCondition::drawSettings()
     ImGui::Bullet();
     ImGui::Text("Initially:");
     ImGui::SameLine();
-    drawEnumButton(TrueFalse::True, TrueFalse::False, defaultState);
+    drawEnumButton(defaultState, {.last = TrueFalse::False});
 
     ImGui::Indent(84.f);
     drawToggle(toggleOnCond, "Toggle on", 0);
@@ -1754,7 +1754,7 @@ bool AgentWithCharacteristicsCountCondition::drawSettings()
 
     ImGui::Text("If the number of nearby agents fulfilling characteristics");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::PushItemWidth(50.f);
     ImGui::InputInt("", &count, 0);
@@ -1822,7 +1822,7 @@ bool ScriptVariableValueCondition::drawSettings()
 
     ImGui::PushItemWidth(100.f);
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::InputInt("Value", &value, 0);
     ImGui::PopItemWidth();
@@ -1861,7 +1861,7 @@ bool ScriptVariableIsSetCondition::drawSettings()
     ImGui::PopItemWidth();
 
     ImGui::SameLine();
-    drawEnumButton(IsIsNot::Is, IsIsNot::IsNot, comp, 0, 40.f);
+    drawEnumButton(comp, {.last = IsIsNot::IsNot, .width = 40.f});
     ImGui::SameLine();
     ImGui::Text("set");
 
@@ -1895,7 +1895,7 @@ bool DoorStatusCondition::drawSettings()
     ImGui::SameLine();
     ImGui::Text("is");;
     ImGui::SameLine();
-    drawEnumButton(DoorStatus::Open, DoorStatus::Closed, status, 1, 70.f);
+    drawEnumButton(status, {.last = DoorStatus::Closed, .id = 1, .width = 70.f});
 
     ImGui::PopID();
 
@@ -1927,7 +1927,7 @@ bool PlayerHasEnergyRegenCondition::drawSettings()
 
     ImGui::Text("If player energy regeneration");
     ImGui::SameLine();
-    drawEnumButton(ComparisonOperator::Equals, ComparisonOperator::NotEquals, comp, 0, 30.f);
+    drawEnumButton(comp, {.last = ComparisonOperator::NotEquals, .width = 30.f});
     ImGui::SameLine();
     ImGui::PushItemWidth(40.f);
     ImGui::InputInt("", &regeneration, 0);
@@ -1978,7 +1978,7 @@ bool QuestHasStateCondition::drawSettings()
     ImGui::SameLine();
     ImGui::Text("has state");
     ImGui::SameLine();
-    drawEnumButton(QuestStatus::NotStarted, QuestStatus::Completed, status);
+    drawEnumButton(status, {.last = QuestStatus::Completed});
     ImGui::PopItemWidth();
     ImGui::PopID();
 
@@ -2051,7 +2051,7 @@ bool ObjectiveHasStateCondition::drawSettings()
 
     ImGui::Text("If the");
     ImGui::SameLine();
-    drawEnumButton(ObjectiveType::Quest, ObjectiveType::Mission, objectiveType, 0, 120.f);
+    drawEnumButton(objectiveType, {.last = ObjectiveType::Mission, .width = 120.f});
     if (objectiveType == ObjectiveType::Quest) 
     {
         ImGui::SameLine();
@@ -2072,7 +2072,7 @@ bool ObjectiveHasStateCondition::drawSettings()
     ImGui::SameLine();
     ImGui::Text("with status");
     ImGui::SameLine();
-    drawEnumButton(QuestStatus::NotStarted, QuestStatus::Completed, status, 3);
+    drawEnumButton(status, {.last = QuestStatus::Completed, .id = 3});
 
     ImGui::PopItemWidth();
     ImGui::PopID();
