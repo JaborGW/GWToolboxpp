@@ -692,6 +692,82 @@ bool PlayerHasSkillCondition::drawSettings()
     return false;
 }
 
+/// ------------- HeroHasSkillCondition -------------
+HeroHasSkillCondition::HeroHasSkillCondition(InputStream& stream)
+{
+    stream >> heroId >> skillId >> requirement;
+}
+void HeroHasSkillCondition::serialize(OutputStream& stream) const
+{
+    Condition::serialize(stream);
+
+    stream << heroId << skillId << requirement;
+}
+bool HeroHasSkillCondition::check() const
+{
+    
+
+    const auto skillBarArray = GW::SkillbarMgr::GetSkillbarArray();
+    const auto partyInfo = GW::PartyMgr::GetPartyInfo();
+    const auto player = GW::Agents::GetControlledCharacter();
+    if (!partyInfo || ! partyInfo->heroes.valid() || !player || !skillBarArray) return false;
+
+    const auto heroHasSkill = [&](GW::AgentID agentId) 
+    {
+        const auto agentSkillBar = std::ranges::find_if(*skillBarArray, [&](const auto& skillbar) {return skillbar.agent_id == agentId;});
+        if (agentSkillBar == skillBarArray->end()) 
+            return false;
+        const auto skillBarSkill = agentSkillBar->GetSkillById(skillId); 
+        if (!skillBarSkill) 
+            return false;
+        switch (requirement) {
+            case HasSkillRequirement::OnBar:
+                return true;
+            case HasSkillRequirement::OffCooldown:
+                return skillBarSkill->GetRecharge() == 0;
+            case HasSkillRequirement::ReadyToUse: 
+            {
+                if (skillBarSkill->GetRecharge() > 0) return false;
+                const auto& skilldata = *GW::SkillbarMgr::GetSkillConstantData(skillBarSkill->skill_id);
+                if (skillBarSkill->adrenaline_a < skilldata.adrenaline) return false;
+                if (getEnergyCost(skilldata) > player->energy * player->max_energy) return false;
+                
+                const auto hero = GW::Agents::GetAgentByID(agentId);
+                if (!hero || !hero->GetIsLivingType()) return true; // Hero is out of range, assume it's fine
+                if (hero->GetAsAgentLiving()->skill) return false;
+                return weaponFulfillsRequirement((EquippedWeaponType)hero->GetAsAgentLiving()->weapon_type, (WeaponRequirement)skilldata.weapon_req, skilldata.type);
+            }
+            default:
+                return false;
+        }
+    };
+
+    return std::ranges::any_of(partyInfo->heroes, [&](const GW::HeroPartyMember& hero) 
+    {
+        return hero.owner_player_id == player->login_number && hero.hero_id == heroId && heroHasSkill(hero.agent_id);
+    });
+}
+bool HeroHasSkillCondition::drawSettings()
+{
+    ImGui::PushID(drawId());
+    
+    ImGui::Text("If");
+    ImGui::SameLine();
+    drawEnumButton(heroId, {.first = GW::Constants::HeroID::Norgu, .last = GW::Constants::HeroID::ZeiRi, .width = 130.f});
+    ImGui::SameLine();
+    ImGui::Text("has skill");
+    ImGui::SameLine();
+    drawSkillIDSelector(skillId);
+    ImGui::SameLine();
+    drawEnumButton(requirement, {.last = HasSkillRequirement::ReadyToUse, .id = 1});
+    ImGui::SameLine();
+    ImGui::ShowHelp("'Ready to use' checks energy requirement, cooldown, adrenaline and weapon type.\r\nEnergy requirement only takes into account base cost, QZ, expertise and mysticism.");
+
+    ImGui::PopID();
+
+    return false;
+}
+
 /// ------------- PlayerHasSkillBySlotCondition -------------
 PlayerHasSkillBySlotCondition::PlayerHasSkillBySlotCondition(InputStream& stream)
 {

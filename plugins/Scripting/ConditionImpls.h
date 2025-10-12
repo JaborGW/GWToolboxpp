@@ -181,6 +181,21 @@ private:
     HasSkillRequirement requirement = HasSkillRequirement::ReadyToUse;
 };
 
+class HeroHasSkillCondition : public Condition {
+public:
+    HeroHasSkillCondition() = default;
+    HeroHasSkillCondition(InputStream&);
+    ConditionType type() const final { return ConditionType::HeroHasSkill; }
+    bool check() const final;
+    bool drawSettings() final;
+    void serialize(OutputStream&) const final;
+
+private:
+    GW::Constants::HeroID heroId = GW::Constants::HeroID::Norgu;
+    GW::Constants::SkillID skillId = GW::Constants::SkillID::No_Skill;
+    HasSkillRequirement requirement = HasSkillRequirement::ReadyToUse;
+};
+
 class PlayerHasEnergyCondition : public Condition {
 public:
     PlayerHasEnergyCondition() = default;
