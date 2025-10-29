@@ -1153,11 +1153,11 @@ void SendChatAction::drawSettings()
 
 ActionBehaviourFlags SendChatAction::behaviour() const
 {
-    if (channel == Channel::Emote || channel == Channel::Log)
+    if (channel == Channel::All || channel == Channel::Trade)
     {
-        return ActionBehaviourFlag::ImmediateFinish | ActionBehaviourFlag::CanBeRunInOutpost;
+        return ActionBehaviourFlag::ImmediateFinish;
     }
-    return ActionBehaviourFlag::ImmediateFinish;
+    return ActionBehaviourFlag::ImmediateFinish | ActionBehaviourFlag::CanBeRunInOutpost;
 }
 
 /// ------------- CancelAction -------------
