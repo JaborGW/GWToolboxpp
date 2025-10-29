@@ -654,3 +654,30 @@ private:
     GW::Constants::HeroID heroId = GW::Constants::HeroID::NoHero;
     std::string build = "";
 };
+
+class DropItemAction : public Action {
+public:
+    DropItemAction() = default;
+    DropItemAction(InputStream&);
+    ActionType type() const final { return ActionType::DropItem; }
+    void initialAction() final;
+    void drawSettings() final;
+    void serialize(OutputStream&) const final;
+
+private:
+    int id = 0;
+};
+
+class DestroyItemAction : public Action {
+public:
+    DestroyItemAction() = default;
+    DestroyItemAction(InputStream&);
+    ActionType type() const final { return ActionType::DestroyItem; }
+    void initialAction() final;
+    void drawSettings() final;
+    void serialize(OutputStream&) const final;
+    ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
+
+private:
+    int id = 0;
+};

@@ -2629,3 +2629,80 @@ void LoadSkillbarAction::drawSettings()
 
     ImGui::PopID();
 }
+
+/// ------------- DropItemAction -------------
+DropItemAction::DropItemAction(InputStream& stream)
+{
+    stream >> id;
+}
+void DropItemAction::serialize(OutputStream& stream) const
+{
+    Action::serialize(stream);
+
+    stream << id;
+}
+void DropItemAction::initialAction()
+{
+    Action::initialAction();
+
+    const auto item = FindMatchingItem(id);
+    if (!item) return;
+
+    // The GWCA function only drops one item instead of the full stack; TODO figure out why
+    GW::GameThread::Enqueue([item]() -> void { GW::Items::DropItem(item, item->quantity); });
+}
+void DropItemAction::drawSettings()
+{
+    const auto item = FindMatchingItem(id);
+    const auto itemName = item ? InstanceInfo::getInstance().getDecodedItemName(item->item_id) : "";
+
+    ImGui::PushID(drawId());
+
+    ImGui::Text("Drop item:");
+    ImGui::SameLine();
+    ImGui::Text("%s", itemName.c_str());
+    ImGui::PushItemWidth(90.f);
+    ImGui::SameLine();
+    ImGui::InputInt("model ID", &id, 0);
+    ImGui::PopItemWidth();
+
+    ImGui::PopID();
+}
+
+/// ------------- DestroyItemAction -------------
+DestroyItemAction::DestroyItemAction(InputStream& stream)
+{
+    stream >> id;
+}
+void DestroyItemAction::serialize(OutputStream& stream) const
+{
+    Action::serialize(stream);
+
+    stream << id;
+}
+void DestroyItemAction::initialAction()
+{
+    Action::initialAction();
+
+    const auto item = FindMatchingItem(id);
+    if (!item) return;
+
+    GW::GameThread::Enqueue([item]() -> void { GW::Items::DestroyItem(item->item_id); });
+}
+void DestroyItemAction::drawSettings()
+{
+    const auto item = FindMatchingItem(id);
+    const auto itemName = item ? InstanceInfo::getInstance().getDecodedItemName(item->item_id) : "";
+
+    ImGui::PushID(drawId());
+
+    ImGui::Text("Destroy item:");
+    ImGui::SameLine();
+    ImGui::Text("%s", itemName.c_str());
+    ImGui::PushItemWidth(90.f);
+    ImGui::SameLine();
+    ImGui::InputInt("model ID", &id, 0);
+    ImGui::PopItemWidth();
+
+    ImGui::PopID();
+}

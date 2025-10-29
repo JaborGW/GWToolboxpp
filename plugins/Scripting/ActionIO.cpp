@@ -6,7 +6,7 @@
 namespace {
     ActionPtr makeAction(ActionType type)
     {
-        static_assert((int)ActionType::Count == 44);
+        static_assert((int)ActionType::Count == 46);
         switch (type) {
             case ActionType::MoveTo:
                 return std::make_shared<MoveToAction>();
@@ -20,6 +20,10 @@ namespace {
                 return std::make_shared<ChangeTargetAction>();
             case ActionType::UseItem:
                 return std::make_shared<UseItemAction>();
+            case ActionType::DropItem:
+                return std::make_shared<DropItemAction>();
+            case ActionType::DestroyItem:
+                return std::make_shared<DestroyItemAction>();
             case ActionType::SendDialog:
                 return std::make_shared<SendDialogAction>();
             case ActionType::GoToTarget:
@@ -102,7 +106,7 @@ namespace {
 
 std::string_view toString(ActionType type)
 {
-    static_assert((int)ActionType::Count == 44);
+    static_assert((int)ActionType::Count == 46);
     switch (type) {
         case ActionType::MoveTo:
             return "Move to Position";
@@ -116,6 +120,10 @@ std::string_view toString(ActionType type)
             return "Change target";
         case ActionType::UseItem:
             return "Use item";
+        case ActionType::DropItem:
+            return "Drop item";
+        case ActionType::DestroyItem:
+            return "Destroy item";
         case ActionType::SendDialog:
             return "Send dialog";
         case ActionType::GoToTarget:
@@ -197,7 +205,7 @@ std::string_view toString(ActionType type)
 
 ActionPtr readAction(InputStream& stream)
 {
-    static_assert((int)ActionType::Count == 44);
+    static_assert((int)ActionType::Count == 46);
     int type;
 
     stream >> type;
@@ -216,6 +224,10 @@ ActionPtr readAction(InputStream& stream)
             return std::make_shared<ChangeTargetAction>(stream);
         case ActionType::UseItem:
             return std::make_shared<UseItemAction>(stream);
+        case ActionType::DropItem:
+            return std::make_shared<DropItemAction>(stream);
+        case ActionType::DestroyItem:
+            return std::make_shared<DestroyItemAction>(stream);
         case ActionType::SendDialog:
             return std::make_shared<SendDialogAction>(stream);
         case ActionType::GoToTarget:
@@ -327,7 +339,7 @@ ActionPtr drawActionSelector(float width)
         drawSubMenu("Skill", std::array{ActionType::Cast, ActionType::CastBySlot, ActionType::DropBuff, ActionType::UseHeroSkill, ActionType::LoadSkillbar});
         drawSubMenu("Interaction", std::array{ActionType::SendDialog, ActionType::GoToTarget, ActionType::AutoAttackTarget});
         drawSubMenu("Targeting", std::array{ActionType::ChangeTarget, ActionType::StoreTarget, ActionType::RestoreTarget, ActionType::ClearTarget});
-        drawSubMenu("Items", std::array{ActionType::EquipItem, ActionType::EquipItemBySlot, ActionType::MoveItemToSlot, ActionType::ChangeWeaponSet, ActionType::UseItem, ActionType::RepopMinipet, ActionType::UnequipItem});
+        drawSubMenu("Items", std::array{ActionType::EquipItem, ActionType::EquipItemBySlot, ActionType::MoveItemToSlot, ActionType::ChangeWeaponSet, ActionType::UseItem, ActionType::DropItem, ActionType::DestroyItem, ActionType::RepopMinipet, ActionType::UnequipItem});
         drawSubMenu("Party", std::array{ActionType::AddHero, ActionType::KickHero});
         drawSubMenu("Chat", std::array{ActionType::SendChat, ActionType::PingTarget, ActionType::PingHardMode});
         drawSubMenu("Control flow", std::array{ActionType::Wait, ActionType::WaitUntil, ActionType::StopScript, ActionType::EnterCriticalSection, ActionType::LeaveCriticalSection});
