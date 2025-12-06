@@ -2172,7 +2172,7 @@ void InventoryManager::ItemClickCallback(GW::HookStatus* status, const uint32_t 
     InventoryManager& im = Instance();
     const Item* item = nullptr;
     switch (type) {
-        case 7: // Left click
+        case 5: // Left click
             if (ImGui::IsKeyDown(ImGuiMod_Ctrl) && GameSettings::GetSettingBool("move_item_on_ctrl_click") && GW::Map::GetInstanceType() == GW::Constants::InstanceType::Outpost) {
                 // Ctrl+Click: Move item to inventory/chest
                 if (bag) {
@@ -2209,7 +2209,7 @@ void InventoryManager::ItemClickCallback(GW::HookStatus* status, const uint32_t 
                 pending_item_move_for_trade = item->item_id;
             }
             return;
-        case 8: // Double click
+        case 9: // Double click
             if (move_to_trade_on_double_click && IsTradeWindowOpen()) {
                 status->blocked = true;
                 // Alt+Click: Add to trade window if available
