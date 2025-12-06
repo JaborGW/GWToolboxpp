@@ -833,6 +833,9 @@ namespace PluginUtils {
                 result.width = skillbar_skill_positions[0].GetSizeOnScreen().x;
                 result.height = skillbar_skill_positions[0].GetSizeOnScreen().y;
             }
+            if (std::isnan(result.positions[i].x) || std::isnan(result.positions[i].y) || std::isnan(result.width) || std::isnan(result.height)) {
+                return std::nullopt;
+            }
         }
 
         // Calculate columns/rows
