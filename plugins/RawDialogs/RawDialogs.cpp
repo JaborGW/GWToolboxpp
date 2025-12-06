@@ -108,7 +108,7 @@ void RawDialogs::LoadSettings(const wchar_t* folder)
 {
     ToolboxPlugin::LoadSettings(folder);
     ini.LoadFile(GetSettingFile(folder).c_str());
-    useCtos = ini.GetBoolValue(Name(), VAR_NAME(useCtos), false);
+    //useCtos = ini.GetBoolValue(Name(), VAR_NAME(useCtos), false);
 
     if (useCtos) initializeCtos();
 }
@@ -129,10 +129,10 @@ void RawDialogs::DrawSettings()
     ImGui::Text("Send dialog in decimal notation: /rawdialog 8416257");
     ImGui::Bullet();
     ImGui::Text("Send dialog in hexadecimal notation: /rawdialog 0x806501");
-    ImGui::Bullet();
-    ImGui::Text("Open chest at range: /openchest");
+    //ImGui::Bullet();
+    //ImGui::Text("Open chest at range: /openchest");
     
-    ImGui::Checkbox("Enable /openchest", &useCtos);
+    //ImGui::Checkbox("Enable /openchest", &useCtos);
     if (useCtos && !ctosIsInitialized) initializeCtos();
     ImGui::SameLine();
     ImGui::ShowHelp("Flags your account, use at your own risk.");
