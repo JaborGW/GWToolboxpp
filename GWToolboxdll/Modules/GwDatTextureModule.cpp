@@ -240,7 +240,7 @@ void GwDatTextureModule::Initialize()
 
     AllocateImage_func = (AllocateImage_pt)Scanner::ToFunctionStart(Scanner::Find("\x7c\x11\x6a\x5c", "xxxx"));
 
-    address = Scanner::ToFunctionStart(Scanner::Find("\x68\xf2\x0c\x00\x00", "xxxxx"));
+    address = Scanner::ToFunctionStart(Scanner::Find("\x68\x1a\x0d\x00\x00", "xxxxx"));
     Depalletize_func = (Depalletize_pt)address;
 
 

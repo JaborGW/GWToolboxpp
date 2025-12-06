@@ -105,7 +105,7 @@ std::wstring ItemDescriptionHandler::GetItemEncNameWithoutMods(const GW::Item* _
 }
 void ItemDescriptionHandler::Initialize()
 {
-    const auto address = GW::Scanner::Find("\x8b\xc3\x25\xfd\x00\x00\x00\x3c\xfd", "xxxxxxxxx", -0x5f);
+    const auto address = GW::Scanner::Find("\x8B\xC3\x8B\x4D\x10\x25\xFD", "xxxxxxxxx", -0x5c);
     if (GW::Scanner::IsValidPtr(address, GW::ScannerSection::Section_TEXT)) {
         GetItemDescription_Func = (GetItemDescriptionCallback)address;
         GW::HookBase::CreateHook((void**) & GetItemDescription_Func, OnGetItemDescription, (void**)&GetItemDescription_Ret);

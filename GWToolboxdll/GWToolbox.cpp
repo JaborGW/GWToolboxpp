@@ -31,7 +31,7 @@
 #include "Modules/HallOfMonumentsModule.h"
 #include "Modules/InventoryManager.h"
 #include "Modules/ItemDescriptionHandler.h"
-#include "Modules/LoginModule.h"
+//#include "Modules/LoginModule.h"
 #include "Modules/Updater.h"
 #include "Modules/PriceCheckerModule.h"
 #include "Windows/SettingsWindow.h"
@@ -649,11 +649,11 @@ void GWToolbox::Initialize(const LPVOID module)
             AttachRenderCallback();
             GW::EnableHooks();
 
-            GW::WaitForFrame(L"BtnRestore", [](GW::UI::Frame* frame) {
-                OnMinOrRestoreOrExitBtnClicked_Func = frame->frame_callbacks[0];
-                GW::HookBase::CreateHook((void**)&OnMinOrRestoreOrExitBtnClicked_Func, OnMinOrRestoreOrExitBtnClicked, reinterpret_cast<void**>(&OnMinOrRestoreOrExitBtnClicked_Ret));
-                GW::HookBase::EnableHooks(OnMinOrRestoreOrExitBtnClicked_Func);
-                });
+            //GW::WaitForFrame(L"BtnRestore", [](GW::UI::Frame* frame) {
+            //    OnMinOrRestoreOrExitBtnClicked_Func = frame->frame_callbacks[0];
+            //    GW::HookBase::CreateHook((void**)&OnMinOrRestoreOrExitBtnClicked_Func, OnMinOrRestoreOrExitBtnClicked, reinterpret_cast<void**>(&OnMinOrRestoreOrExitBtnClicked_Ret));
+            //    GW::HookBase::EnableHooks(OnMinOrRestoreOrExitBtnClicked_Func);
+            //    });
 
             UpdateInitialising(.0f);
             AttachGameLoopCallback();
@@ -966,7 +966,7 @@ void GWToolbox::UpdateInitialising(float)
     ToggleModule(ChatSettings::Instance());
     ToggleModule(InventoryManager::Instance());
     ToggleModule(HallOfMonumentsModule::Instance());
-    ToggleModule(LoginModule::Instance());
+    //ToggleModule(LoginModule::Instance());
     ToggleModule(AprilFools::Instance());
     ToggleModule(SettingsWindow::Instance());
 

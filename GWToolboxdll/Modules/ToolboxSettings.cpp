@@ -26,7 +26,7 @@
 #include <Modules/GWFileRequester.h>
 #endif
 #include <Modules/ToastNotifications.h>
-#include <Modules/MouseFix.h>
+//#include <Modules/MouseFix.h>
 #include <Modules/GuildWarsSettingsModule.h>
 #include <Modules/PriceCheckerModule.h>
 #include <Modules/SalvageInfoModule.h>
@@ -143,7 +143,7 @@ namespace {
         Teamspeak5Module::Instance(),
         ObserverModule::Instance(),
         HintsModule::Instance(),
-        MouseFix::Instance(),
+        //MouseFix::Instance(),
         KeyboardLanguageFix::Instance(),
         GuildWarsSettingsModule::Instance(),
         PriceCheckerModule::Instance(),

@@ -166,13 +166,14 @@ namespace {
         if (!hwnd) {
             return false;
         }
-        uintptr_t address = GW::Scanner::Find("\xc7\x45\xf0\x10\x00\x00\x00\xc7\x45\xf4\x02\x00\x00\x00", "xx?xxxxxx?xxxx", 0x15);
-        if(address && GW::Scanner::IsValidPtr(*(uintptr_t*)address)) {
-            ProcessInput_Func = (OnProcessInput_pt)GW::Scanner::ToFunctionStart(address, 0xfff);
+
+        const auto address = GW::Scanner::Find("\xA3\x00\x00\x00\x00\xA1\x00\x00\x00\x00\x85\xC0\x75", "x????x????xxx", +0x0001);
+        if (GW::Scanner::IsValidPtr(address, GW::ScannerSection::Section_TEXT)) {
             HasRegisteredTrackMouseEvent = *(bool**)address;
-            gw_mouse_move = (GwMouseMove*)(HasRegisteredTrackMouseEvent - 0x20);
-            SetCursorPosCenter_Func = (SetCursorPosCenter_pt)GW::Scanner::FunctionFromNearCall(GW::Scanner::FindInRange("\x89\x46\x08\xe8????", "xxxx????", 3, address, address + 0xff));
         }
+        ProcessInput_Func = (OnProcessInput_pt)GW::Scanner::Find("\x55\x8B\xEC\x83\xEC\x00\x56\x8B\x75\x00\x57\x8B\x7D\x00\x8B\x47\x00\x83\xF8\x00\x0F\x87", "xxxxx?xxx?xxx?xx?xx?xx", +0x0000);
+        gw_mouse_move = (GwMouseMove*)(HasRegisteredTrackMouseEvent - 0x20);
+        SetCursorPosCenter_Func = (SetCursorPosCenter_pt)GW::Scanner::Find("\x55\x8B\xEC\x83\xEC\x00\xA1\x00\x00\x00\x00\x33\xC5\x89\x45\x00\x57\x8B\x7D\x00\x8D\x45", "xxxxx?x????xxxx?xxx?xx", +0x0000);
 
         GWCA_INFO("[SCAN] ProcessInput_Func = %p", ProcessInput_Func);
         GWCA_INFO("[SCAN] HasRegisteredTrackMouseEvent = %p", HasRegisteredTrackMouseEvent);
