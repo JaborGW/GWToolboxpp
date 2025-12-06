@@ -220,7 +220,7 @@ public:
     ActionBehaviourFlags behaviour() const final { return ActionBehaviourFlag::CanBeRunInOutpost; }
 
 private:
-    GoToTargetFinishCondition finishCondition = GoToTargetFinishCondition::StoppedMovingNextToTarget;
+    GoToTargetFinishCondition finishCondition = GoToTargetFinishCondition::DialogOpen;
 
     const GW::AgentLiving* target = nullptr;
     mutable GW::HookEntry hook;

@@ -1610,7 +1610,7 @@ void PingHardModeAction::initialAction()
     if (!player) return;
 
     if (!Ping_Func) {
-        const auto address = GW::Scanner::Find("\xc7\x45\xf0\x26\x00", "xxxxx", -0x22);
+        const auto address = GW::Scanner::Find("\xc7\x45\xf0\x23", "xxxx", -0x22);
         if (GW::Scanner::IsValidPtr(address, GW::ScannerSection::Section_TEXT)) Ping_Func = (Ping_pt)address;
     }
     if (!Ping_Func) {
@@ -1639,7 +1639,7 @@ void PingTargetAction::initialAction()
     if (!currentTarget) return;
 
     if (!Ping_Func) {
-        const auto address = GW::Scanner::Find("\xc7\x45\xf0\x26\x00", "xxxxx", -0x22);
+        const auto address = GW::Scanner::Find("\xc7\x45\xf0\x23", "xxxx", -0x22);
         if (GW::Scanner::IsValidPtr(address, GW::ScannerSection::Section_TEXT)) Ping_Func = (Ping_pt)address;
     }
     if (!Ping_Func) {
