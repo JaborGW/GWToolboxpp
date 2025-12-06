@@ -51,10 +51,10 @@ namespace {
 
         if (message->message_id == GW::UI::UIMessage::kMouseClick2) {
             const auto packet = (GW::UI::UIPacket::kMouseAction*)wParam;
-            if (packet->current_state == 0x7 && (packet->child_frame_id_dupe & 0xffff0000) == 0x80000000) {
+            if (packet->current_state == GW::UI::UIPacket::ActionState::MouseClick && (packet->child_offset_id & 0xffff0000) == 0x80000000) {
                 if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Outpost) {
                     if (last_quest_clicked && TIMER_DIFF(last_quest_clicked) < 250) {
-                        const auto quest_id = static_cast<GW::Constants::QuestID>(packet->child_frame_id_dupe & 0xffff);
+                        const auto quest_id = static_cast<GW::Constants::QuestID>(packet->child_offset_id & 0xffff);
                         const auto quest = GW::QuestMgr::GetQuest(quest_id);
                         if (quest && quest->map_to != GW::Constants::MapID::Count) {
                             TravelWindow::Instance().TravelNearest(quest->map_to);
@@ -455,12 +455,13 @@ void QuestModule::Initialize()
     }
     RefreshQuestPath(GW::QuestMgr::GetActiveQuestId());
 
-    const auto address = GW::Scanner::Find("\x83\xc0\xfc\x83\xf8\x55", "xxxxxx", -0xe);
+    const auto address = GW::Scanner::Find("\x83\xc0\xfc\x83\xf8\x62", "xxxxxx", -0xe);
     if (GW::Scanner::IsValidPtr(address, GW::ScannerSection::Section_TEXT)) {
         QuestLogRow_UICallback_Func = (GW::UI::UIInteractionCallback)address;
         GW::Hook::CreateHook((void**)&QuestLogRow_UICallback_Func, OnQuestLogRow_UICallback, (void**)&QuestLogRow_UICallback_Ret);
         GW::Hook::EnableHooks(QuestLogRow_UICallback_Func);
     }
+
 #ifdef _DEBUG
     ASSERT(QuestLogRow_UICallback_Func);
 #endif

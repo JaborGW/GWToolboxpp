@@ -1431,7 +1431,7 @@ void GameSettings::Initialize()
     SkillList_UICallback_Func = (GW::UI::UIInteractionCallback)GW::Scanner::ToFunctionStart(GW::Scanner::FindAssertion("GmCtlSkList.cpp", "!obj", 0xc71,0));
     Log::Log("[GameSettings] SkillList_UICallback_Func = %p\n", SkillList_UICallback_Func);
    
-    address = GW::Scanner::Find("\x81\xff\x86\x02\x00\x00", "xxxxxx", 6);
+    address = GW::Scanner::Find("\x81\xfb\x86\x02\x00\x00", "xxxxxx", 6);
     if (address)
         skip_map_entry_message_patch.SetPatch(address, "\x90\xe9", 2);
     Log::Log("[GameSettings] skip_map_entry_message_patch = %p\n", skip_map_entry_message_patch.GetAddress());
