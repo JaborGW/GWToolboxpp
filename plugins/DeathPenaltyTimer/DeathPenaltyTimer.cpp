@@ -236,7 +236,7 @@ void DeathPenaltyTimer::DrawSettings()
     ImGui::SameLine();
     ImGui::Checkbox("Background", &showBackground);
 
-    ImGui::Text("Version 1.1.1. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.1.2. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";

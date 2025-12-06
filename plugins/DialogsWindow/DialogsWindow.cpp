@@ -234,7 +234,7 @@ void DialogsWindow::DrawSettings()
     ImGui::SameLine();
     ImGui::ShowHelp("Allows to send more dialogs, for example to allies in combat. Might flag your account, use at your own risk.");
 
-    ImGui::Text("Version 1.2.3. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.2.4. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";

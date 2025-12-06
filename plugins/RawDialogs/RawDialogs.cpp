@@ -137,7 +137,7 @@ void RawDialogs::DrawSettings()
     ImGui::SameLine();
     ImGui::ShowHelp("Flags your account, use at your own risk.");
     
-    ImGui::Text("Version 1.1.3. For new releases, feature requests and bug reports check out");
+    ImGui::Text("Version 1.1.4. For new releases, feature requests and bug reports check out");
     ImGui::SameLine();
 
     constexpr auto discordInviteLink = "https://discord.gg/ZpKzer4dK9";
