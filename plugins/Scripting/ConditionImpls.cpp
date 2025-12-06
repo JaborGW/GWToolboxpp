@@ -2118,7 +2118,6 @@ bool ObjectiveHasStateCondition::check() const
                 return false;
         }
     }
-    return false;
 }
 bool ObjectiveHasStateCondition::drawSettings()
 {

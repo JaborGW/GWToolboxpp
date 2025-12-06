@@ -86,8 +86,6 @@ namespace {
                 return std::make_shared<AbandonQuestAction>();
             case ActionType::MoveItemToSlot:
                 return std::make_shared<MoveItemToSlotAction>();
-            case ActionType::RotateCharacter:
-                return std::make_shared<RotateCharacterAction>();
             case ActionType::KeyboardMove:
                 return std::make_shared<KeyboardMoveAction>();
             case ActionType::Random:
@@ -186,8 +184,6 @@ std::string_view toString(ActionType type)
             return "Abandon quest";
         case ActionType::MoveItemToSlot:
             return "Move item to slot";
-        case ActionType::RotateCharacter:
-            return "Rotate";
         case ActionType::KeyboardMove:
             return "Keyboard move";
         case ActionType::Random:
@@ -288,8 +284,6 @@ ActionPtr readAction(InputStream& stream)
             return std::make_shared<AbandonQuestAction>(stream);
         case ActionType::MoveItemToSlot:
             return std::make_shared<MoveItemToSlotAction>(stream);
-        case ActionType::RotateCharacter:
-            return std::make_shared<RotateCharacterAction>(stream);
         case ActionType::KeyboardMove:
             return std::make_shared<KeyboardMoveAction>(stream);
         case ActionType::Random:

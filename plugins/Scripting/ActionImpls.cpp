@@ -1610,7 +1610,7 @@ void PingHardModeAction::initialAction()
     if (!player) return;
 
     if (!Ping_Func) {
-        const auto address = GW::Scanner::Find("\xc7\x45\xf0\x22\x00", "xxxxx", -0x22);
+        const auto address = GW::Scanner::Find("\xc7\x45\xf0\x26\x00", "xxxxx", -0x22);
         if (GW::Scanner::IsValidPtr(address, GW::ScannerSection::Section_TEXT)) Ping_Func = (Ping_pt)address;
     }
     if (!Ping_Func) {
@@ -1639,7 +1639,7 @@ void PingTargetAction::initialAction()
     if (!currentTarget) return;
 
     if (!Ping_Func) {
-        const auto address = GW::Scanner::Find("\xc7\x45\xf0\x22\x00", "xxxxx", -0x22);
+        const auto address = GW::Scanner::Find("\xc7\x45\xf0\x26\x00", "xxxxx", -0x22);
         if (GW::Scanner::IsValidPtr(address, GW::ScannerSection::Section_TEXT)) Ping_Func = (Ping_pt)address;
     }
     if (!Ping_Func) {
@@ -2199,66 +2199,6 @@ void MoveItemToSlotAction::drawSettings()
     ImGui::InputInt("Slot", &slot, 0);
     ImGui::PopItemWidth();
 
-    ImGui::PopID();
-}
-
-/// ------------- RotateCharacterAction -------------
-RotateCharacterAction::RotateCharacterAction(InputStream& stream)
-{
-    stream >> targetRotation;
-}
-void RotateCharacterAction::serialize(OutputStream& stream) const
-{
-    Action::serialize(stream);
-
-    stream << targetRotation;
-}
-
-//typedef void(__cdecl* RotateCharacter_pt)(GW::AgentID id, float targetRotation, float rotationSpeed, uint32_t always0);
-//RotateCharacter_pt RotateCharacter_Func = 0;
-
-// 1 or -1
-typedef void(__cdecl* RotateCharacter_pt)(float direction);
-RotateCharacter_pt RotateCharacter_Func = 0;
-
-void RotateCharacterAction::initialAction()
-{
-    Action::initialAction();
-
-    const auto player = GW::Agents::GetControlledCharacter();
-    if (!player) return;
-    if (!RotateCharacter_Func) 
-    {
-        const auto address = GW::Scanner::Find("\x8b\xec\xd9\x05\xf0\x14\x25\x01\xd9\x45", "xxxxxxxxxx", -0x1);
-        if (GW::Scanner::IsValidPtr(address, GW::ScannerSection::Section_TEXT))
-            RotateCharacter_Func = (RotateCharacter_pt)address;
-        //const auto address = GW::Scanner::FindAssertion(R"(P:\Code\Engine\Agent\AgApi.cpp)", "infinity || (targetAngle >= -PI)", 0, -0x44);
-        //if (GW::Scanner::IsValidPtr(address, GW::ScannerSection::Section_TEXT)) 
-        //    RotateCharacter_Func = (RotateCharacter_pt)address;
-
-    }
-    if (!RotateCharacter_Func) 
-        return;
-
-    GW::GameThread::Enqueue([]
-    {
-        RotateCharacter_Func(1.f);
-    });
-}
-void RotateCharacterAction::drawSettings()
-{
-    ImGui::PushID(drawId());
-    ImGui::PushItemWidth(100.f);
-
-    ImGui::Text("Rotate to");
-    ImGui::SameLine();
-    ImGui::InputFloat("Target rotation", &targetRotation, 0.f, 0.f);
-
-    const auto pi = (float)std::numbers::pi;
-    if (targetRotation > pi) targetRotation = pi;
-    if (targetRotation < -pi) targetRotation = -pi;
-
-    ImGui::PopItemWidth();
     ImGui::PopID();
 }
 
