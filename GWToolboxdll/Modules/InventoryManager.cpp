@@ -2209,7 +2209,7 @@ void InventoryManager::ItemClickCallback(GW::HookStatus* status, const uint32_t 
                 pending_item_move_for_trade = item->item_id;
             }
             return;
-        case 8: // Double click
+        case 9: // Double click
             if (move_to_trade_on_double_click && IsTradeWindowOpen()) {
                 status->blocked = true;
                 // Alt+Click: Add to trade window if available
